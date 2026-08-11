@@ -73,6 +73,20 @@ AddPrim. The term MCD is reserved for the official CFQ MCD1, MCD2, and MCD3
 partitions; no SCAN result is labeled MCD without a separately implemented and
 documented compound-divergence partition.
 
+## Structural-Supervision Disclosure
+
+SCAN structures are deterministically parsed from the input command alone.
+COGS and SLOG semantic-role relations are extracted from each paired gold
+logical form and aligned to source spans. CFQ relations are extracted from the
+paired gold SPARQL query and conservatively aligned to question spans. The
+latter benchmarks therefore use **training-time gold-derived structural
+supervision**. They must not be described as using an input-only parser.
+
+No structure annotation is provided to generation. Held-out structural
+violation analysis may use gold-derived relations only as an explicitly
+oracle, gold-assisted secondary diagnostic; it is never an input to prediction,
+checkpoint selection, or the primary exact-match endpoint.
+
 ## Published Structural Comparator
 
 The predeclared structure-aware comparator for the COGS/SLOG family is the
@@ -107,4 +121,15 @@ statistics or figures are generated.
 
 ## Amendments
 
-None.
+### 2026-08-11 — Fairness contract and seed-count amendment
+
+Before submitting the new publication matrix, tokenizer mode, literal
+train/validation indices, source/target limits, evaluation loading, decoding,
+and validation-based checkpoint selection were unified across DAI and the
+applicable baselines through one benchmark contract. The paired seed set was
+expanded from five to the ten seeds listed above because a two-sided exact
+sign-flip test with five pairs has minimum attainable p-value 0.0625 and cannot
+support the predeclared Holm-corrected analysis. This amendment followed
+preliminary legacy SCAN runs but preceded the corrected 720-run matrix and was
+not selected based on results from that matrix. Previous artifacts are not
+silently relabeled as results under the amended contract.

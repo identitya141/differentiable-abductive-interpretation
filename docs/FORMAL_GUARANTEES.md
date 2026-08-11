@@ -20,22 +20,22 @@ $$
 h_s = \frac{1}{|s|}\sum_{i \in s} h_i.
 $$
 
-The primary learned abstract representation is a product:
+The primary learned abstract representation used by the frozen SCAN, COGS,
+SLOG, and CFQ experiments is a type distribution:
 
 $$
-A = \Delta^{T-1} \times \Delta^2,
+A = \Delta^{T-1},
 $$
 
-where $\Delta^{T-1}$ is a distribution over learned semantic types and
-$\Delta^2$ is a distribution over decreasing, non-monotonic, and increasing
-classes. The differentiable abstraction map is:
+where $\Delta^{T-1}$ is a distribution over learned semantic types. The
+differentiable abstraction map is:
 
 $$
 \alpha_\theta : H \rightarrow A.
 $$
 
-For each SCAN grammar operator $o$, the implementation learns a type transfer
-table and applies a differentiable monotonicity transfer:
+For each grounded composition operator $o$, the primary implementation learns
+an operator-specific type transfer table:
 
 $$
 C_{A,o} : A \times A \rightarrow A.
@@ -54,8 +54,27 @@ C_{A,o}(\alpha_\theta(h_L),\alpha_\theta(h_R))
 \right).
 $$
 
-The implemented product divergence is symmetric KL divergence for type
-distributions plus mean squared distance for monotonicity distributions.
+The primary type-domain divergence is symmetric KL divergence between type
+distributions. Interval, monotonicity, type-monotonicity product, and
+relational domains remain implemented research variants; they are not the
+abstract representation used by the frozen primary matrix.
+
+## Structural-Supervision Boundary
+
+SCAN composition relations are derived entirely from the input command by its
+deterministic grammar. COGS and SLOG relations are different: semantic roles
+such as `agent`, `theme`, and `nmod` are identified from the gold logical form
+and then aligned to spans in the source sentence. CFQ relations are identified
+from the gold SPARQL query and conservatively grounded to source-question
+spans. These three benchmarks therefore use **training-time gold-derived
+structural supervision**, not an input-only structural parser.
+
+Gold-derived relations are not consumed during generation and are unnecessary
+for deployment-time prediction. When they are used on held-out examples to
+measure composition violation, that quantity is explicitly an oracle,
+gold-assisted diagnostic; it is not an inference-time signal or capability.
+Shuffled and random matched-span controls test whether the correct structural
+annotation matters beyond receiving an auxiliary loss.
 
 ## Guaranteed by Construction
 
@@ -67,13 +86,11 @@ distributions plus mean squared distance for monotonicity distributions.
 4. The composition objective is differentiable with respect to encoder states,
    abstraction networks, and the selected learned type transfer table.
 5. Each operator uses a distinct learned type transfer table.
-6. For the implemented nonnegative divergences, zero product consistency loss
-   implies equality of the compared type and monotonicity distributions, up to
-   numerical precision.
+6. For the primary nonnegative divergence, zero type consistency loss implies
+   equality of the compared type distributions, up to numerical precision.
 
-The sixth statement follows because both symmetric KL divergence and squared
-distance are nonnegative and equal zero only when their compared probability
-distributions agree.
+The sixth statement follows because symmetric KL divergence is nonnegative and
+equals zero only when the compared probability distributions agree.
 
 ## Not Guaranteed
 
@@ -98,7 +115,7 @@ so declaring subset order or conservative transfer rules would not establish a
 meaningful soundness result. A lattice variant would be a separate method: it
 must first define task-level concrete type sets and conservative transfers, then
 test order, join, meet, monotonicity, and transfer conservativeness. Those laws
-are therefore not claimed or tested for the current learned product domain.
+are therefore not claimed or tested for the current learned type domain.
 
 ## Empirical Obligations
 

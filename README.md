@@ -16,6 +16,11 @@
 
 4. **Reproducible Evaluation Infrastructure**: Paired-seed configurations, per-example artifacts, canonical normalization, compute accounting, and dependent statistical analysis jobs support publication experiments. Empirical improvement claims remain pending those experiments.
 
+Supervision scope: SCAN structures are parsed from inputs alone. COGS/SLOG
+logical forms and CFQ SPARQL targets provide training-time gold-derived
+structural annotations aligned to source spans; they are not used during
+generation. See the formal-scope document for the corresponding claim limits.
+
 The exact implemented objects, limited construction guarantees, and explicit
 non-guarantees are documented in [Formal Scope and Guarantees](docs/FORMAL_GUARANTEES.md).
 The frozen analysis and release rules are in
@@ -94,7 +99,6 @@ for the current evidence status.
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
 
 
 

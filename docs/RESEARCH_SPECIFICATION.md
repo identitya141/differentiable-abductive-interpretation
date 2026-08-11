@@ -129,7 +129,9 @@ Different transformer layers benefit from different abstraction constraints; ear
 
 1. **Data Assumption**: Training data contains sufficient primitive examples to learn basic operations
 2. **Architecture Assumption**: Transformer attention can represent compositional operations given appropriate inductive bias
-3. **Abstract Domain Assumption**: The chosen abstract domain (type-monotonicity) captures relevant compositional structure for the evaluated tasks
+3. **Abstract Domain Assumption**: The primary learned type domain captures
+   relevant compositional structure for the evaluated tasks; optional product
+   and monotonicity domains are variants rather than primary-matrix claims
 4. **Optimization Assumption**: The abstraction loss landscape is smooth enough for gradient-based optimization
 
 ### Scope Limitations
@@ -179,7 +181,7 @@ Different transformer layers benefit from different abstraction constraints; ear
 | Aspect | Grammar-aware parser / AM-Parser | Tree-linearized seq2seq | DAI |
 |--------|----------------------------------|-------------------------|-----|
 | **Structure at inference** | Predicts an explicit tree or graph | Generates a serialized structure | Generates the task output directly |
-| **Training signal** | Gold or derived symbolic structures and parser actions | Target structure tokens | Input-output loss plus grounded span-composition consistency |
+| **Training signal** | Gold or derived symbolic structures and parser actions | Source-only tree serialization in this repository | Input-output loss plus grounded span-composition consistency; SCAN structures are input-derived, while COGS/SLOG/CFQ use training-time gold-derived structural supervision |
 | **Constraint** | Discrete grammar and decoder validity | Output ordering bias | Soft agreement between child and parent hidden-state abstractions |
 | **Guarantee** | Determined by the parser grammar and decoder | No symbolic validity guarantee | No soundness or completeness guarantee for generated programs |
 
@@ -189,6 +191,13 @@ parsers, structured attention, tree serialization, and classical
 neuro-symbolic execution are prior structural approaches. Novelty claims must
 be limited to the implemented objective and supported by matched controls;
 they must not imply that DAI introduced grammar-aware compositional learning.
+
+For COGS, SLOG, and CFQ, the structural annotations used by DAI are extracted
+from the paired gold logical form or SPARQL query during training and aligned
+back to source spans. They are not produced by an input-only parser. Generation
+uses only the input and trained model. Any held-out composition-violation score
+that uses these annotations is reported as a gold-assisted diagnostic rather
+than a deployable inference-time measure.
 
 ---
 

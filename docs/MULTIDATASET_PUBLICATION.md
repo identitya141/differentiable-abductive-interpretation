@@ -15,6 +15,15 @@ configurations times ten seeds) and 720 paired-seed training
 runs. Baseline rows dispatch to `scripts/train_baseline.py`; structural DAI
 controls and the proposed method dispatch to `scripts/train.py`.
 
+## Supervision Boundary
+
+SCAN composition metadata is input-derived. COGS/SLOG metadata is extracted
+from the paired gold logical form, and CFQ metadata from the paired gold SPARQL
+query, then grounded to source spans. This is training-time gold-derived
+structural supervision. It is not supplied during generation. Held-out
+composition-violation reports that use these annotations are oracle diagnostics
+and are kept separate from the primary exact-match endpoint.
+
 ## Safety Contract
 
 Do not sync these changes into `~/dai-research` while an existing job may

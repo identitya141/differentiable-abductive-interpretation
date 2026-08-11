@@ -69,6 +69,24 @@ class BenchmarkContractTests(unittest.TestCase):
             source.index("Running final held-out IID evaluation"),
         )
 
+    def test_reviewer_docs_disclose_supervision_and_primary_type_domain(self):
+        formal = Path("docs/FORMAL_GUARANTEES.md").read_text(encoding="utf-8")
+        protocol = Path("docs/EXPERIMENT_PROTOCOL.md").read_text(encoding="utf-8")
+        specification = Path("docs/RESEARCH_SPECIFICATION.md").read_text(
+            encoding="utf-8"
+        )
+
+        for document in (formal, protocol, specification):
+            self.assertIn("gold-derived", document)
+            self.assertIn("input-only", document)
+        self.assertIn("primary learned abstract representation", formal)
+        self.assertIn("A = \\Delta^{T-1}", formal)
+        self.assertIn("oracle", formal)
+        self.assertIn("2026-08-11", protocol)
+        self.assertNotIn(
+            "chosen abstract domain (type-monotonicity)", specification
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
