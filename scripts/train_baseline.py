@@ -59,10 +59,13 @@ from src.models.baselines import (
     BASELINE_REGISTRY,
     canonical_baseline_name,
     create_baseline,
+    linearize_source_only_tree,
 )
 from src.evaluation.compositional_metrics import CompositionParser
 from src.evaluation.metrics import normalize_batch_for_eval, normalize_for_eval
 from src.utils.reproducibility import set_seed
+from src.utils.benchmark_contract import get_benchmark_contract, paired_holdout_indices
+from src.utils.tokenizer_utils import extend_tokenizer_for_dataset
 import logging
 import numpy as np
 import yaml
@@ -153,6 +156,7 @@ def load_baseline_dataset(
     max_target_length: int = 128,
     baseline_type: str = "vanilla",
     model=None,
+    split_seed: int = 42,
 ):
     """
     Load and tokenize dataset for baseline training.
@@ -204,11 +208,13 @@ def load_baseline_dataset(
                     rows.append((source.removeprefix("IN:").strip(), target.strip(), "length"))
                 return rows
             train = rows_dataset(scan_rows(train_path))
-            held_out = train.train_test_split(test_size=0.1, seed=42)
+            training_indices, validation_indices = paired_holdout_indices(
+                len(train), 0.1, split_seed
+            )
             return DatasetDict({
-                "train": held_out["train"],
-                "validation": held_out["test"],
-                "iid_test": held_out["test"],
+                "train": train.select(training_indices),
+                "validation": train.select(validation_indices),
+                "iid_test": train.select(validation_indices),
                 "test": rows_dataset(scan_rows(test_path)),
             })
         if dataset_name == "cogs":
@@ -245,11 +251,13 @@ def load_baseline_dataset(
             else:
                 return None
             train = loaded["train"]
-            held_out = train.train_test_split(test_size=0.1, seed=42)
+            training_indices, validation_indices = paired_holdout_indices(
+                len(train), 0.1, split_seed
+            )
             return DatasetDict({
-                "train": held_out["train"],
-                "validation": held_out["test"],
-                "iid_test": held_out["test"],
+                "train": train.select(training_indices),
+                "validation": train.select(validation_indices),
+                "iid_test": train.select(validation_indices),
                 "test": loaded["test"],
             })
         return None
@@ -325,31 +333,7 @@ def load_baseline_dataset(
                 from src.data.scan_composition import linearize_scan_command
                 inputs = [linearize_scan_command(text) for text in inputs]
             else:
-                if dataset_name in {"cogs", "slog"}:
-                    from src.data.cogs_composition import extract_cogs_composition_specs
-                    extractor = extract_cogs_composition_specs
-                elif dataset_name == "cfq":
-                    from src.data.cfq_composition import extract_cfq_composition_specs
-                    extractor = extract_cfq_composition_specs
-                else:
-                    extractor = None
-
-                def linearize_relations(text, target):
-                    if extractor is None:
-                        return text
-                    words = text.split()
-                    specs = extractor(text, target)
-                    relations = [
-                        f"( {spec.operator} {' '.join(words[slice(*spec.left_span)])} "
-                        f"{' '.join(words[slice(*spec.right_span)])} )"
-                        for spec in specs
-                    ]
-                    return f"{text} <TREE> {' '.join(relations)}" if relations else text
-
-                inputs = [
-                    linearize_relations(text, target)
-                    for text, target in zip(inputs, targets)
-                ]
+                inputs = [linearize_source_only_tree(text) for text in inputs]
         if baseline_type == "cot":
             inputs = [model.preprocess_input(text) for text in inputs]
             targets = [
@@ -362,6 +346,16 @@ def load_baseline_dataset(
                 model.format_target(*reasoning_and_answer(target))
                 for target in targets
             ]
+
+        untruncated_targets = tokenizer(
+            text_target=list(targets), truncation=False, add_special_tokens=True
+        )["input_ids"]
+        too_long = [len(ids) for ids in untruncated_targets if len(ids) > max_target_length]
+        if too_long:
+            raise ValueError(
+                f"Gold target requires up to {max(too_long)} tokens but the benchmark "
+                f"contract permits {max_target_length}; refusing truncation"
+            )
 
         model_inputs = tokenizer(
             inputs,
@@ -531,6 +525,14 @@ def train_baseline(
     
     baseline_type = canonical_baseline_name(baseline_type)
 
+    contract = get_benchmark_contract(dataset_name, split)
+    max_source_length = contract.max_source_length
+    max_target_length = contract.max_target_length
+    batch_size = contract.train_batch_size
+    eval_batch_size = contract.eval_batch_size
+    generation_num_beams = contract.generation_num_beams
+    generation_max_length = contract.generation_max_new_tokens
+
     # Set seed for reproducibility
     set_seed(seed)
     
@@ -590,11 +592,15 @@ def train_baseline(
         tokenizer = model.tokenizer
     else:
         tokenizer = AutoTokenizer.from_pretrained(base_model)
+        tokenizer, _ = extend_tokenizer_for_dataset(
+            tokenizer, dataset_name, verbose=True
+        )
         if baseline_type in ("cot", "scratchpad", "symbolic"):
             model_kwargs["tokenizer"] = tokenizer
         model = create_baseline(
             baseline_type, config, dataset_type=dataset_name, **model_kwargs
         )
+        model._hf_model.resize_token_embeddings(len(tokenizer))
     
     # Load dataset
     print("\nLoading dataset...")
@@ -610,6 +616,7 @@ def train_baseline(
             max_target_length=max_target_length,
             baseline_type=baseline_type,
             model=model,
+            split_seed=contract.data_split_seed,
         )
 
     if constrain_to_training_targets:
@@ -710,7 +717,9 @@ def train_baseline(
         learning_rate=learning_rate,
         weight_decay=weight_decay,
         warmup_ratio=warmup_ratio,
-        lr_scheduler_type=lr_scheduler,
+        lr_scheduler_type=(
+            "cosine" if lr_scheduler == "cosine_with_warmup" else lr_scheduler
+        ),
         logging_dir=str(output_dir / "logs"),
         logging_steps=100,
         evaluation_strategy="epoch",  # Fixed: was 'eval_strategy'
@@ -866,6 +875,7 @@ def train_baseline(
         "generation_num_beams": generation_num_beams,
         "generation_max_length": generation_max_length,
         "constrain_to_training_targets": constrain_to_training_targets,
+        "benchmark_contract": contract.__dict__,
         # Compute tracking for fair comparison
         "compute_metrics": {
             "total_steps": total_steps,

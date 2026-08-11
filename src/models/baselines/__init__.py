@@ -19,6 +19,7 @@ from .baseline_models import (
     BASELINE_ALIASES,
     canonical_baseline_name,
     create_baseline,
+    linearize_source_only_tree,
 )
 
 __all__ = [
@@ -40,4 +41,5 @@ __all__ = [
     "BASELINE_ALIASES",
     "canonical_baseline_name",
     "create_baseline",
+    "linearize_source_only_tree",
 ]

@@ -940,7 +940,8 @@ def evaluate_model(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
                     labels=batch.labels.to(device),
-                    compute_abstraction_loss=True,
+                    compute_abstraction_loss=False,
+                    compute_abstraction_diagnostics=True,
                     composition_specs=composition_specs,
                 )
                 diagnostics = model.get_abstraction_diagnostics()

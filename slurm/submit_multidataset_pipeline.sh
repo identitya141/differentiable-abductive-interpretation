@@ -154,7 +154,7 @@ PY
 
 echo "Source snapshot: $SOURCE_SNAPSHOT_ID"
 echo "Configurations: $((RUN_COUNT / 5)) (6 benchmarks x 12 methods)"
-echo "Training runs:  $RUN_COUNT (five paired seeds)"
+echo "Training runs:  $RUN_COUNT (ten paired seeds)"
 echo "Tests:           $TEST_JOB"
 echo "Reference gate:  $REFERENCE_JOB"
 echo "Data validation: $VALIDATION_JOB"

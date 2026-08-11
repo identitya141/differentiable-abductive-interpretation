@@ -200,7 +200,7 @@ for SEED in "$SEED"; do
                 2>&1 | tee "$TASK_LOG"
             ;;
         dai_control|proposed)
-            OVERRIDE="output_dir=$OUTPUT_DIR,data.data_dir=$DATA_DIR,data.num_workers=8"
+            OVERRIDE="output_dir=$OUTPUT_DIR,data.data_dir=$DATA_DIR"
             if [[ -n "$METHOD_OVERRIDE" ]]; then
                 OVERRIDE="$OVERRIDE,$METHOD_OVERRIDE"
             fi

@@ -2,7 +2,7 @@
 
 The frozen cross-dataset matrix is defined by
 `configs/publication/multidataset_matrix.json`. It schedules paired seeds
-42, 123, 456, 789, and 1024 for all eleven registered baselines and the
+42, 123, 456, 789, 1024, 2027, 4099, 7919, 104729, and 130363 for all eleven registered baselines and the
 proposed full structural-contrastive DAI method on:
 
 - SCAN length
@@ -10,8 +10,8 @@ proposed full structural-contrastive DAI method on:
 - SLOG structural generalization
 - CFQ MCD1, MCD2, and MCD3
 
-This expands to 360 independently retryable array tasks (72 method/benchmark
-configurations times five seeds) and 360 paired-seed training
+This expands to 720 independently retryable array tasks (72 method/benchmark
+configurations times ten seeds) and 720 paired-seed training
 runs. Baseline rows dispatch to `scripts/train_baseline.py`; structural DAI
 controls and the proposed method dispatch to `scripts/train.py`.
 
@@ -37,7 +37,7 @@ sbatch --export=ALL,MAX_CONCURRENT=3 slurm/submit_multidataset_pipeline.sh
 ```
 
 The coordinator creates a read-only, content-addressed source snapshot and
-then submits a 360-task GPU array plus an `afterok` analysis job. A submission
+then submits a 720-task GPU array plus an `afterok` analysis job. A submission
 JSON records the coordinator, matrix, and analysis job IDs under:
 
 ```text

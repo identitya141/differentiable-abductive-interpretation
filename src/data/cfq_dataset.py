@@ -28,11 +28,11 @@ Why Relevant for DAI:
 """
 
 import os
-import random
 from typing import Dict, List, Optional
 
 from datasets import load_dataset, load_from_disk
 from torch.utils.data import DataLoader, Subset
+from src.utils.benchmark_contract import paired_holdout_indices
 
 from .base_dataset import BaseCompositionalDataset, CompositionalExample
 from .cfq_composition import (
@@ -262,10 +262,13 @@ class CFQDataModule:
         max_source_length: int = 128,
         max_target_length: int = 256,
         num_workers: int = 4,
+        eval_batch_size: Optional[int] = None,
+        eval_num_workers: int = 0,
         cache_dir: Optional[str] = None,
         data_dir: Optional[str] = None,
         validation_fraction: float = 0.1,
         seed: int = 42,
+        split_seed: int = 42,
         composition_structure_mode: str = "grounded",
     ):
         self.tokenizer = tokenizer
@@ -274,12 +277,15 @@ class CFQDataModule:
         self.max_source_length = max_source_length
         self.max_target_length = max_target_length
         self.num_workers = num_workers
+        self.eval_batch_size = eval_batch_size or batch_size
+        self.eval_num_workers = eval_num_workers
         self.cache_dir = cache_dir
         self.data_dir = data_dir
         if not 0.0 < validation_fraction < 1.0:
             raise ValueError("validation_fraction must be between 0 and 1")
         self.validation_fraction = validation_fraction
         self.seed = seed
+        self.split_seed = split_seed
         self.composition_structure_mode = composition_structure_mode
         
         self.train_dataset = None
@@ -300,13 +306,9 @@ class CFQDataModule:
             seed=self.seed,
         )
 
-        indices = list(range(len(self.train_dataset)))
-        random.Random(self.seed).shuffle(indices)
-        validation_size = max(1, round(len(indices) * self.validation_fraction))
-        validation_indices = indices[:validation_size]
-        training_indices = indices[validation_size:]
-        if not training_indices:
-            raise ValueError("CFQ training split is too small for validation holdout")
+        training_indices, validation_indices = paired_holdout_indices(
+            len(self.train_dataset), self.validation_fraction, self.split_seed
+        )
         full_train_dataset = self.train_dataset
         self.train_dataset = Subset(full_train_dataset, training_indices)
         self.validation_dataset = Subset(full_train_dataset, validation_indices)
@@ -327,20 +329,24 @@ class CFQDataModule:
         return self._subset_dataloader(self.train_dataset, shuffle=True)
 
     def validation_dataloader(self):
-        return self._subset_dataloader(self.validation_dataset, shuffle=False)
+        return self._subset_dataloader(
+            self.validation_dataset, shuffle=False, evaluation=True
+        )
     
     def test_dataloader(self):
         return self.test_dataset.get_dataloader(
-            batch_size=self.batch_size,
+            batch_size=self.eval_batch_size,
             shuffle=False,
-            num_workers=self.num_workers,
+            num_workers=self.eval_num_workers,
         )
 
-    def _subset_dataloader(self, dataset: Subset, shuffle: bool) -> DataLoader:
+    def _subset_dataloader(
+        self, dataset: Subset, shuffle: bool, evaluation: bool = False
+    ) -> DataLoader:
         return DataLoader(
             dataset,
-            batch_size=self.batch_size,
+            batch_size=self.eval_batch_size if evaluation else self.batch_size,
             shuffle=shuffle,
-            num_workers=self.num_workers,
+            num_workers=self.eval_num_workers if evaluation else self.num_workers,
             collate_fn=dataset.dataset.collate_fn,
         )

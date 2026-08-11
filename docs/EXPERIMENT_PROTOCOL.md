@@ -33,7 +33,11 @@ The primary method is `scan_full_contrastive`. The six primary controls are:
 5. `scan_shuffled_structure`
 6. `scan_simple_consistency`
 
-All methods use paired seeds `42`, `123`, `456`, `789`, and `1024`. Failed runs
+All methods use the ten paired seeds `42`, `123`, `456`, `789`, `1024`,
+`2027`, `4099`, `7919`, `104729`, and `130363`. The expansion from five to
+ten was frozen before inspecting final OOD results because an exact two-sided
+sign-flip test with five pairs has minimum attainable p-value 0.0625 and cannot
+support the predeclared Holm-corrected inference. Failed runs
 are rerun with the same seed and frozen configuration; seeds are not replaced
 based on outcomes.
 

@@ -183,6 +183,8 @@ class SLOGDataModule:
         max_source_length: int = 256,
         max_target_length: int = 512,
         num_workers: int = 4,
+        eval_batch_size: Optional[int] = None,
+        eval_num_workers: int = 0,
         data_dir: Optional[str] = None,
         cache_dir: Optional[str] = None,
         composition_structure_mode: str = "grounded",
@@ -193,6 +195,8 @@ class SLOGDataModule:
         self.max_source_length = max_source_length
         self.max_target_length = max_target_length
         self.num_workers = num_workers
+        self.eval_batch_size = eval_batch_size or batch_size
+        self.eval_num_workers = eval_num_workers
         self.data_dir = data_dir
         self.cache_dir = cache_dir
         self.composition_structure_mode = composition_structure_mode
@@ -223,7 +227,7 @@ class SLOGDataModule:
 
     def val_dataloader(self):
         return self.dev_dataset.get_dataloader(
-            self.batch_size, shuffle=False, num_workers=self.num_workers
+            self.eval_batch_size, shuffle=False, num_workers=self.eval_num_workers
         )
 
     def validation_dataloader(self):
@@ -231,10 +235,10 @@ class SLOGDataModule:
 
     def iid_test_dataloader(self):
         return self.iid_test_dataset.get_dataloader(
-            self.batch_size, shuffle=False, num_workers=self.num_workers
+            self.eval_batch_size, shuffle=False, num_workers=self.eval_num_workers
         )
 
     def test_dataloader(self):
         return self.test_dataset.get_dataloader(
-            self.batch_size, shuffle=False, num_workers=self.num_workers
+            self.eval_batch_size, shuffle=False, num_workers=self.eval_num_workers
         )

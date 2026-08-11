@@ -60,6 +60,8 @@ class DataConfig:
     max_source_length: int = 128
     max_target_length: int = 128
     num_workers: int = 4
+    eval_num_workers: int = 0
+    split_seed: int = 42
     cache_dir: Optional[str] = None
     data_dir: Optional[str] = None
     validation_fraction: float = 0.1

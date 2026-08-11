@@ -23,6 +23,19 @@ import torch.nn.functional as F
 from transformers import T5ForConditionalGeneration, T5Config, T5Tokenizer, PreTrainedTokenizer
 from transformers.modeling_outputs import BaseModelOutput, Seq2SeqLMOutput
 
+
+def linearize_source_only_tree(text: str) -> str:
+    """Create a deterministic balanced tree using source tokens only."""
+    words = text.split()
+
+    def build(items):
+        if len(items) <= 1:
+            return items[0] if items else ""
+        middle = len(items) // 2
+        return f"( SEQ {build(items[:middle])} {build(items[middle:])} )"
+
+    return f"{text} <TREE> {build(words)}"
+
 # Optional LLaMA imports
 try:
     from transformers import (

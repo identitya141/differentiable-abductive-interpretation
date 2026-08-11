@@ -5,7 +5,7 @@ Main Training Script for DAI Experiments
 Usage:
     # Train with config file
     python scripts/train.py --config configs/experiments/main_results.yaml
-    
+
     # Train with overrides
     python scripts/train.py --config configs/experiments/main_results.yaml \
         --override "training.learning_rate=1e-4,model.num_types=32"
@@ -39,6 +39,7 @@ from src.evaluation.compositional_metrics import CompositionParser
 from src.utils.config import load_config, parse_override, ExperimentConfig
 from src.utils.reproducibility import set_seed, get_reproducibility_info, ReproducibilityManager
 from src.utils.tokenizer_utils import extend_tokenizer_for_dataset
+from src.utils.benchmark_contract import apply_benchmark_contract
 
 # Dataset imports
 from src.data.scan_dataset import SCANDataModule
@@ -135,6 +136,8 @@ def get_data_module(dataset: str, tokenizer, config: ExperimentConfig):
             max_source_length=data_config.max_source_length,
             max_target_length=data_config.max_target_length,
             num_workers=data_config.num_workers,
+            eval_batch_size=config.training.eval_batch_size,
+            eval_num_workers=data_config.eval_num_workers,
             cache_dir=data_config.cache_dir,
             data_dir=data_config.data_dir,
             validation_fraction=data_config.validation_fraction,
@@ -143,6 +146,7 @@ def get_data_module(dataset: str, tokenizer, config: ExperimentConfig):
             input_representation=data_config.input_representation,
             nonce_primitives=data_config.nonce_primitives,
             seed=config.training.seed,
+            split_seed=data_config.split_seed,
         )
     elif dataset == 'cogs':
         return COGSDataModule(
@@ -151,6 +155,8 @@ def get_data_module(dataset: str, tokenizer, config: ExperimentConfig):
             max_source_length=data_config.max_source_length,
             max_target_length=data_config.max_target_length,
             num_workers=data_config.num_workers,
+            eval_batch_size=config.training.eval_batch_size,
+            eval_num_workers=data_config.eval_num_workers,
             cache_dir=data_config.cache_dir,
             data_dir=data_config.data_dir,
             composition_structure_mode=data_config.composition_structure_mode,
@@ -163,6 +169,8 @@ def get_data_module(dataset: str, tokenizer, config: ExperimentConfig):
             max_source_length=data_config.max_source_length,
             max_target_length=data_config.max_target_length,
             num_workers=data_config.num_workers,
+            eval_batch_size=config.training.eval_batch_size,
+            eval_num_workers=data_config.eval_num_workers,
             cache_dir=data_config.cache_dir,
             data_dir=data_config.data_dir,
             composition_structure_mode=data_config.composition_structure_mode,
@@ -176,10 +184,13 @@ def get_data_module(dataset: str, tokenizer, config: ExperimentConfig):
             max_source_length=data_config.max_source_length,
             max_target_length=data_config.max_target_length,
             num_workers=data_config.num_workers,
+            eval_batch_size=config.training.eval_batch_size,
+            eval_num_workers=data_config.eval_num_workers,
             cache_dir=data_config.cache_dir,
             data_dir=data_config.data_dir,
             validation_fraction=data_config.validation_fraction,
             seed=config.training.seed,
+            split_seed=data_config.split_seed,
             composition_structure_mode=data_config.composition_structure_mode,
         )
     elif dataset == 'clutrr':
@@ -281,6 +292,8 @@ def train(
     """
     # Set seed
     seed = config.training.seed if seed is None else seed
+    config.training.seed = seed
+    contract = apply_benchmark_contract(config)
     run_output_dir = Path(config.output_dir) / f"seed_{seed}"
     repro_manager = ReproducibilityManager(seed, str(run_output_dir))
     repro_manager.save_info()
@@ -411,7 +424,18 @@ def train(
         'total': total_params,
         'trainable': trainable_params,
     }
-    
+    results['benchmark_contract'] = asdict(contract)
+
+    # Final metrics must use the validation-selected checkpoint, never the
+    # in-memory final epoch.
+    trainer.load_checkpoint("best")
+    results['selected_checkpoint'] = {
+        'name': 'best',
+        'metric': 'validation_exact_match',
+        'best_epoch': trainer.state.best_epoch,
+        'best_metric': trainer.state.best_metric,
+    }
+
     # Final held-out IID and OOD evaluation
     logger.info("Running final held-out IID evaluation...")
     iid_dataloader = (

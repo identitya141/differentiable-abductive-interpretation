@@ -320,6 +320,17 @@ def get_generation_config(dataset_type: str, tokenizer=None, final_eval: bool = 
         Dictionary of generation parameters
     """
     dataset_type = dataset_type.lower().split("_")[0]  # "scan_length" -> "scan"
+    if dataset_type in {"scan", "cogs", "slog", "cfq"}:
+        from src.utils.benchmark_contract import get_benchmark_contract
+
+        contract = get_benchmark_contract(dataset_type)
+        return {
+            "max_new_tokens": contract.generation_max_new_tokens,
+            "min_new_tokens": contract.generation_min_new_tokens,
+            "num_beams": contract.generation_num_beams,
+            "length_penalty": contract.generation_length_penalty,
+            "use_eos_ban": contract.generation_use_eos_ban,
+        }
     config = GENERATION_CONFIGS.get(dataset_type, GENERATION_CONFIGS["scan"]).copy()
     
     # SCAN: dynamically select atomic vs subword config

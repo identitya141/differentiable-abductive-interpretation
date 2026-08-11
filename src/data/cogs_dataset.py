@@ -266,6 +266,8 @@ class COGSDataModule:
         max_source_length: int = 128,
         max_target_length: int = 256,
         num_workers: int = 4,
+        eval_batch_size: Optional[int] = None,
+        eval_num_workers: int = 0,
         cache_dir: Optional[str] = None,
         data_dir: Optional[str] = None,
         composition_structure_mode: str = "grounded",
@@ -276,6 +278,8 @@ class COGSDataModule:
         self.max_source_length = max_source_length
         self.max_target_length = max_target_length
         self.num_workers = num_workers
+        self.eval_batch_size = eval_batch_size or batch_size
+        self.eval_num_workers = eval_num_workers
         self.cache_dir = cache_dir
         self.data_dir = data_dir
         self.composition_structure_mode = composition_structure_mode
@@ -341,9 +345,9 @@ class COGSDataModule:
     
     def val_dataloader(self):
         return self.dev_dataset.get_dataloader(
-            batch_size=self.batch_size,
+            batch_size=self.eval_batch_size,
             shuffle=False,
-            num_workers=self.num_workers,
+            num_workers=self.eval_num_workers,
         )
 
     def validation_dataloader(self):
@@ -351,14 +355,14 @@ class COGSDataModule:
 
     def iid_test_dataloader(self):
         return self.iid_test_dataset.get_dataloader(
-            batch_size=self.batch_size,
+            batch_size=self.eval_batch_size,
             shuffle=False,
-            num_workers=self.num_workers,
+            num_workers=self.eval_num_workers,
         )
     
     def test_dataloader(self):
         return self.test_dataset.get_dataloader(
-            batch_size=self.batch_size,
+            batch_size=self.eval_batch_size,
             shuffle=False,
-            num_workers=self.num_workers,
+            num_workers=self.eval_num_workers,
         )

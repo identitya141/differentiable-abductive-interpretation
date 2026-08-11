@@ -254,7 +254,7 @@ class DAIEncoderWrapper(nn.Module):
         if (
             self.training
             and self.config.require_grounded_composition
-            and (not composition_specs or not any(composition_specs))
+            and composition_specs is None
         ):
             raise ValueError(
                 "Grounded composition is required, but this batch has no composition metadata"
@@ -449,6 +449,7 @@ class DAITransformer(nn.Module):
         output_hidden_states: Optional[bool] = True,
         return_dict: bool = True,
         compute_abstraction_loss: bool = True,
+        compute_abstraction_diagnostics: bool = False,
         composition_specs: Optional[List[List[Any]]] = None,
     ) -> DAIModelOutput:
         """
@@ -476,6 +477,10 @@ class DAITransformer(nn.Module):
                 global_step=self._global_step,
             )
             should_compute_abstraction = abs_weight > 0.0
+        if compute_abstraction_diagnostics:
+            # Explicit, loss-free diagnostic pass. This refreshes per-example
+            # caches in eval mode without enabling dropout or modifying task loss.
+            should_compute_abstraction = True
 
         # During warmup/evaluation this is a genuine task-only encoder pass.
         encoder_outputs = self.dai_encoder(
@@ -504,7 +509,7 @@ class DAITransformer(nn.Module):
         # Compute abstraction loss
         abstraction_loss = None
         raw_abs_loss = None
-        if should_compute_abstraction:
+        if should_compute_abstraction and self.training:
             raw_abs_loss = self.dai_encoder.get_total_abstraction_loss()
             abstraction_loss = abs_weight * raw_abs_loss
         elif compute_abstraction_loss and self.training:

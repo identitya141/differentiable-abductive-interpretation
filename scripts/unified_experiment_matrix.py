@@ -34,8 +34,9 @@ def load_manifest(path: Path) -> Dict[str, Any]:
     if manifest.get("baseline_registry") != "all":
         raise ValueError("baseline_registry must be 'all'")
     seeds = manifest.get("seeds")
-    if seeds != [42, 123, 456, 789, 1024] or len(set(seeds)) != 5:
-        raise ValueError("The publication protocol requires the five paired seeds")
+    required_seeds = [42, 123, 456, 789, 1024, 2027, 4099, 7919, 104729, 130363]
+    if seeds != required_seeds or len(set(seeds)) != len(required_seeds):
+        raise ValueError("The publication protocol requires the ten paired seeds")
     benchmarks = manifest.get("benchmarks")
     if not isinstance(benchmarks, list) or len(benchmarks) != 6:
         raise ValueError("The unified matrix requires exactly six benchmark settings")

@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "seeds": [42, 123, 456, 789, 1024],
+  "seeds": [42, 123, 456, 789, 1024, 2027, 4099, 7919, 104729, 130363],
   "baseline_registry": "all",
   "proposed_method": "full_contrastive",
   "benchmarks": [

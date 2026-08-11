@@ -24,7 +24,7 @@ class MultidatasetMatrixTests(unittest.TestCase):
             self.assertTrue((ROOT / run["config"]).is_file())
 
         self.assertEqual(len(identities), len(set(identities)))
-        self.assertEqual(len(identities), 360)
+        self.assertEqual(len(identities), 720)
         self.assertEqual(
             {(row["dataset"], row["split"]) for row in self.runs},
             {
@@ -38,7 +38,10 @@ class MultidatasetMatrixTests(unittest.TestCase):
         )
 
     def test_seeds_are_paired_and_unique(self):
-        self.assertEqual(self.matrix["seeds"], [42, 123, 456, 789, 1024])
+        self.assertEqual(
+            self.matrix["seeds"],
+            [42, 123, 456, 789, 1024, 2027, 4099, 7919, 104729, 130363],
+        )
         self.assertEqual(len(self.matrix["seeds"]), len(set(self.matrix["seeds"])))
 
     def test_ineligible_datasets_are_explicitly_not_scheduled(self):
@@ -80,14 +83,14 @@ class MultidatasetMatrixTests(unittest.TestCase):
         for run in self.runs:
             by_setting.setdefault((run["dataset"], run["split"]), []).append(run)
         for rows in by_setting.values():
-            self.assertEqual(len(rows), 60)
-            self.assertEqual(sum(row["runner"] == "baseline" for row in rows), 40)
-            self.assertEqual(sum(row["runner"] == "dai_control" for row in rows), 15)
-            self.assertEqual(sum(row["runner"] == "proposed" for row in rows), 5)
+            self.assertEqual(len(rows), 120)
+            self.assertEqual(sum(row["runner"] == "baseline" for row in rows), 80)
+            self.assertEqual(sum(row["runner"] == "dai_control" for row in rows), 30)
+            self.assertEqual(sum(row["runner"] == "proposed" for row in rows), 10)
             for method in {row["method"] for row in rows}:
                 self.assertEqual(
                     sorted(row["seed"] for row in rows if row["method"] == method),
-                    [42, 123, 456, 789, 1024],
+                    [42, 123, 456, 789, 1024, 2027, 4099, 7919, 104729, 130363],
                 )
 
 

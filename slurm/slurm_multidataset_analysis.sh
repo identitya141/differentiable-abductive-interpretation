@@ -24,7 +24,7 @@ SCRATCH_DIR=${SCRATCH_DIR:-"/scratch/$USER/dai-research"}
 VENV_DIR=${VENV_DIR:-"$HOME/dai-research/venv"}
 EXPERIMENT_ROOT="$SCRATCH_DIR/experiments/publication"
 REPORT_ROOT="$SCRATCH_DIR/results/publication_multidataset/$SOURCE_SNAPSHOT_ID/analysis_$SLURM_JOB_ID"
-SEEDS=(42 123 456 789 1024)
+SEEDS=(42 123 456 789 1024 2027 4099 7919 104729 130363)
 MATRIX_PATH="$PROJECT_DIR/configs/publication/multidataset_matrix.json"
 
 module purge

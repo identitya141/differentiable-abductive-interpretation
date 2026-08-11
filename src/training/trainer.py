@@ -156,7 +156,9 @@ class TrainingState:
     """
     global_step: int = 0
     epoch: int = 0
-    best_metric: float = 0.0
+    # Negative infinity guarantees that epoch zero is a selectable checkpoint,
+    # even when validation exact match is initially zero.
+    best_metric: float = float("-inf")
     best_epoch: int = 0
     epochs_without_improvement: int = 0
     

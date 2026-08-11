@@ -91,6 +91,7 @@ class SCANDataModuleTests(unittest.TestCase):
             batch = next(iter(first.validation_dataloader()))
             self.assertEqual(len(batch.composition_specs), 1)
             self.assertGreater(len(batch.composition_specs[0]), 0)
+            self.assertEqual(first.validation_dataloader().num_workers, 0)
 
     def test_tree_linearization_removes_span_constraints(self):
         with tempfile.TemporaryDirectory() as temporary_directory:

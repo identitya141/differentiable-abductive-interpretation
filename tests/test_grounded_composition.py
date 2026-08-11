@@ -350,6 +350,42 @@ class GroundedCompositionLossTests(unittest.TestCase):
 
 
 class GroundedCompositionActivationTests(unittest.TestCase):
+    def test_eval_diagnostics_refresh_without_adding_abstraction_loss(self):
+        torch.manual_seed(29)
+        t5_config = T5Config(
+            vocab_size=32, d_model=8, d_ff=16, num_layers=1,
+            num_heads=2, d_kv=4, dropout_rate=0.0,
+            pad_token_id=0, eos_token_id=1, decoder_start_token_id=0,
+        )
+        with patch(
+            "src.models.dai_transformer.T5ForConditionalGeneration.from_pretrained",
+            return_value=T5ForConditionalGeneration(t5_config),
+        ):
+            model = DAITransformer(DAIConfig(
+                constrained_layers=[0], domain_type="type",
+                num_types=4, type_embed_dim=4,
+                composition_weight=1.0,
+            ))
+        model.eval()
+        output = model(
+            input_ids=torch.tensor([[2, 3, 4]]),
+            attention_mask=torch.ones(1, 3),
+            labels=torch.tensor([[5, 6, 1]]),
+            composition_specs=[
+                [SCANCompositionSpec((0, 1), (1, 2), (0, 2), "and")]
+            ],
+            compute_abstraction_loss=False,
+            compute_abstraction_diagnostics=True,
+        )
+        self.assertIsNone(output.abstraction_loss)
+        self.assertIsNotNone(output.abstraction_diagnostics)
+        self.assertEqual(
+            output.abstraction_diagnostics["layer_0"][
+                "loss_composition_count"
+            ].item(),
+            1.0,
+        )
+
     def test_over_constraint_history_remains_full_after_wraparound(self):
         detector = OverConstraintDetector(
             task_loss_window=4, task_loss_increase_threshold=0.1
@@ -495,12 +531,12 @@ class GroundedCompositionActivationTests(unittest.TestCase):
                 composition_specs=None,
             )
 
-        with self.assertRaisesRegex(ValueError, "no composition metadata"):
-            wrapper(
-                input_ids=torch.tensor([[1, 2, 3], [4, 5, 6]]),
-                attention_mask=torch.ones(2, 3),
-                composition_specs=[[], []],
-            )
+        output = wrapper(
+            input_ids=torch.tensor([[1, 2, 3], [4, 5, 6]]),
+            attention_mask=torch.ones(2, 3),
+            composition_specs=[[], []],
+        )
+        self.assertEqual(output.last_hidden_state.shape[:2], (2, 3))
 
     def test_t5_encoder_consumes_grounded_specs(self):
         torch.manual_seed(17)

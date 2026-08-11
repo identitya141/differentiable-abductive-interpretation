@@ -129,6 +129,14 @@ class BaseCompositionalDataset(Dataset, ABC):
         
         for example in self.examples:
             composition_structure = self._get_compositional_structure(example)
+            target_ids = self.tokenizer.encode(
+                example.target_text, add_special_tokens=True
+            )
+            if len(target_ids) > self.max_target_length:
+                raise ValueError(
+                    f"Gold target requires {len(target_ids)} tokens but the benchmark "
+                    f"contract permits {self.max_target_length}; refusing truncation"
+                )
             # Tokenize input
             input_encoding = self.tokenizer(
                 example.input_text,

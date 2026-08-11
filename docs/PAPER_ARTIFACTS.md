@@ -22,7 +22,7 @@ This document provides templates and guidelines for generating publication-ready
 \centering
 \caption{Compositional generalization results. We report exact match accuracy
 (\%) on out-of-distribution test splits as mean $\pm$ sample standard deviation
-over five paired seeds.}
+over ten paired seeds.}
 \label{tab:main_results}
 \begin{tabular}{lccccccc}
 \toprule
@@ -296,7 +296,7 @@ make generate-tables
 python scripts/generate_breakdown_tables.py \
     --experiment-dir results/publication \
     --methods scan_full_contrastive scan_reference_t5 \
-    --seeds 42 123 456 789 1024 \
+    --seeds 42 123 456 789 1024 2027 4099 7919 104729 130363 \
     --output-dir results/publication/breakdowns
 
 # Inventory the frozen source package on a Sapelo compute node
@@ -308,7 +308,7 @@ sbatch slurm/slurm_release_manifest.sh
 
 ### Checklist Before Submission
 
-- [ ] Primary tables report all five paired seeds, sample standard deviation,
+- [ ] Primary tables report all ten paired seeds, sample standard deviation,
       paired 95% confidence intervals, effect sizes, and corrected tests
 - [ ] Figure fonts are ≥8pt
 - [ ] Color scheme is colorblind-friendly
