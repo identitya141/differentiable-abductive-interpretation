@@ -1,0 +1,9 @@
+{
+  "base": "slog_grounded.json",
+  "experiment_name": "slog_structural_generalization_full_contrastive",
+  "output_dir": "experiments/publication/slog/structural_generalization/full_contrastive",
+  "abstraction": {
+    "contrastive_weight": 0.0,
+    "structural_contrastive_weight": 1.0
+  }
+}

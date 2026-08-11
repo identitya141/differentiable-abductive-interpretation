@@ -1,0 +1,6 @@
+{
+  "base": "scan_full_contrastive.json",
+  "experiment_name": "scan_length_corruption_075",
+  "output_dir": "experiments/scan_length_corruption_075",
+  "data": {"structure_corruption_probability": 0.75}
+}

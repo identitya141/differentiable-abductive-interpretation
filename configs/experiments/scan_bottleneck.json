@@ -1,0 +1,11 @@
+{
+  "base": "scan_grounded.json",
+  "experiment_name": "scan_length_bottleneck",
+  "output_dir": "experiments/scan_length_bottleneck",
+  "abstraction": {
+    "concretization_weight": 1.0,
+    "composition_weight": 0.0,
+    "entropy_regularization": 0.0,
+    "contrastive_weight": 0.0
+  }
+}

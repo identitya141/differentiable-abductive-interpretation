@@ -1,0 +1,47 @@
+# Symbolic Rule-Augmented T5 Baseline Configuration
+# T5 with hand-coded symbolic rules (strong neuro-symbolic baseline)
+# Note: Full SCAN grammar is implemented - should achieve ~100% on SCAN
+
+baseline_type: "symbolic"
+name: "Symbolic Rule-Augmented T5"
+
+# Model settings
+model:
+  base_model: "t5-small"
+  max_source_length: 128
+  max_target_length: 128
+
+# Symbolic settings
+symbolic:
+  # Dataset-specific rule sets
+  # SCAN: Full grammar rules implemented
+  # Other datasets: Falls back to neural generation
+  use_rules_for_inference: true
+  fallback_to_neural: true
+
+# Training settings (neural component)
+training:
+  num_epochs: 30
+  train_batch_size: 32
+  eval_batch_size: 64
+  learning_rate: 3.0e-4
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  lr_scheduler: "cosine_with_warmup"
+  gradient_accumulation_steps: 1
+  max_grad_norm: 1.0
+
+# Checkpointing
+save_strategy: "epoch"
+save_total_limit: 3
+load_best_model_at_end: true
+metric_for_best_model: "eval_loss"
+
+# Evaluation
+eval_strategy: "epoch"
+predict_with_generate: true
+generation_max_length: 128
+
+# Reproducibility
+seed: 42
+deterministic: true

@@ -1,0 +1,12 @@
+{
+  "base": "scan_grounded.json",
+  "experiment_name": "slog_structural_generalization_grounded",
+  "output_dir": "experiments/publication/slog/structural_generalization/grounded",
+  "data": {
+    "dataset": "slog",
+    "dataset_split": "structural_generalization",
+    "max_source_length": 256,
+    "max_target_length": 512,
+    "data_dir": "data/slog"
+  }
+}

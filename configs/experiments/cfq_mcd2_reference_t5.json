@@ -1,0 +1,8 @@
+{
+  "base": "cfq_mcd1_reference_t5.json",
+  "experiment_name": "cfq_mcd2_reference_t5",
+  "output_dir": "experiments/publication/cfq/mcd2/reference_t5",
+  "data": {
+    "dataset_split": "mcd2"
+  }
+}

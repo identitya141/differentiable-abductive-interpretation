@@ -1,0 +1,6 @@
+{
+  "base": "scan_full_contrastive.json",
+  "experiment_name": "scan_length_nonce_full_structural_contrastive",
+  "output_dir": "experiments/scan_length_nonce_full_structural_contrastive",
+  "data": {"nonce_primitives": true}
+}

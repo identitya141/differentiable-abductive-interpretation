@@ -1,0 +1,18 @@
+{
+  "base": "cfq_mcd1_grounded.json",
+  "experiment_name": "cfq_mcd1_reference_t5",
+  "output_dir": "experiments/publication/cfq/mcd1/reference_t5",
+  "model": {
+    "architecture": "reference_t5",
+    "pretrained": true
+  },
+  "abstraction": {
+    "abstraction_loss_weight": 0.0,
+    "concretization_weight": 0.0,
+    "composition_weight": 0.0,
+    "consistency_weight": 0.0,
+    "entropy_regularization": 0.0,
+    "contrastive_weight": 0.0,
+    "structural_contrastive_weight": 0.0
+  }
+}

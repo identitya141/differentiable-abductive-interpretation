@@ -1,0 +1,18 @@
+{
+  "base": "scan_full_contrastive.json",
+  "experiment_name": "scan_length_numerical_smoke",
+  "output_dir": "experiments/scan_length_numerical_smoke",
+  "training": {
+    "max_steps": 200,
+    "train_batch_size": 16,
+    "eval_batch_size": 32,
+    "gradient_accumulation_steps": 1,
+    "fp16": true,
+    "fp16_initial_scale": 1024.0
+  },
+  "abstraction": {
+    "warmup_steps": 25,
+    "ramp_steps": 50
+  },
+  "logging_steps": 10
+}

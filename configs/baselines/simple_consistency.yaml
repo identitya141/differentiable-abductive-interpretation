@@ -1,0 +1,14 @@
+baseline_type: simple_consistency
+name: Simple structural-consistency T5
+composition_structure_mode: grounded
+model:
+  base_model: t5-small
+  max_source_length: 128
+  max_target_length: 128
+training:
+  num_epochs: 30
+  train_batch_size: 32
+  eval_batch_size: 64
+  learning_rate: 3.0e-4
+  gradient_accumulation_steps: 1
+seed: 42

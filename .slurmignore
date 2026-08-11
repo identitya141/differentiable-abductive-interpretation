@@ -1,0 +1,42 @@
+# Files/directories to exclude when copying to Sapelo
+# (not processed by SLURM, but useful for rsync/scp)
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+/venv/
+/env/
+/ENV/
+
+# Data and large files
+/data/
+*.tar.gz
+*.zip
+*.h5
+*.pkl
+*.pth
+*.pt
+
+# Outputs (regenerate on cluster)
+/checkpoints/
+/logs/
+/results/
+/experiments/
+/wandb/
+/.tensorboard/
+
+# Development
+.git/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+docs/_build/
+*.pdf

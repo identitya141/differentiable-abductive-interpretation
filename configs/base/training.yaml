@@ -1,0 +1,92 @@
+# Base Training Configuration for DAI Experiments
+# Contains all training hyperparameters
+
+# Reproducibility
+seed: 42
+deterministic: true
+
+# Optimization
+optimizer: "adamw"
+learning_rate: 3.0e-4
+weight_decay: 0.01
+adam_beta1: 0.9
+adam_beta2: 0.999
+adam_epsilon: 1.0e-8
+max_grad_norm: 1.0
+
+# Learning rate schedule
+lr_scheduler: "cosine_with_warmup"
+warmup_ratio: 0.1
+# warmup_steps: null  # Overrides warmup_ratio if set
+
+# Training duration
+num_epochs: 20
+# max_steps: null  # Overrides num_epochs if set
+
+# Batching
+train_batch_size: 32
+eval_batch_size: 64
+gradient_accumulation_steps: 1
+
+# DAI-specific: Abstraction loss scheduling
+# λ (abstraction_loss_weight) controls how strongly to enforce abstract constraints
+# Raw abstraction loss ~4000-5000, λ tuned so weighted loss is ~5-10% of task loss
+# START CONSERVATIVE: use 2e-6, only increase after seeing stability + EM gains
+abstraction_loss_weight: 0.000002  # λ_final = 2e-6 (conservative, increase later if stable)
+
+# Epoch-based scheduling (legacy, coarser control)
+# Used only if abstraction_use_step_schedule: false
+abstraction_warmup_epochs: 3
+abstraction_ramp_epochs: 3
+
+# Step-based scheduling (RECOMMENDED, finer control)
+# Safe schedule for SCAN (~10,620 total steps):
+#   0–1500: λ = 0 (pure task learning, ~14% of training)
+#   1500–5000: ramp 0 → 2e-6 (gradual introduction, ~33% of training)
+#   5000+: λ = 2e-6 (full abstraction constraint)
+# This gives ~47% of training with full λ, plenty of room for learning
+abstraction_use_step_schedule: true
+abstraction_warmup_steps: 1500   # Steps with λ=0 (pure task learning)
+abstraction_ramp_steps: 3500     # Steps to linearly ramp λ from 0 → λ_final
+
+# λ Backoff mechanism (AUTOMATIC SAFETY VALVE)
+# When N consecutive "task_loss_increasing" warnings occur, temporarily set λ=0
+# This turns warning spam into automatic corrective action:
+#   - backoff_trigger_count: Number of consecutive warnings before triggering backoff
+#   - backoff_steps: Number of steps to keep λ=0 before resuming normal schedule
+# After backoff, schedule resumes from current global step (no reset)
+abstraction_backoff_enabled: true
+abstraction_backoff_trigger_count: 5    # Trigger backoff after 5 consecutive warnings
+abstraction_backoff_steps: 100          # Keep λ=0 for 100 steps during backoff
+
+# Optional safety clamp: ensure weighted abstraction loss never exceeds
+# (abstraction_max_abs_task_ratio * task_loss) per batch.
+# Reduced from 2.0 to 0.8 to enforce task-led optimization
+abstraction_max_abs_task_ratio: 0.8
+
+# Abstraction loss components
+concretization_weight: 1.0
+composition_weight: 0.5
+consistency_weight: 0.1
+entropy_regularization: 0.1
+
+# Mixed precision (set to true for faster training on compatible GPUs)
+fp16: false
+bf16: false
+
+# Checkpointing
+save_strategy: "epoch"  # "epoch", "steps", "best"
+save_steps: 500
+save_total_limit: 3
+
+# Logging
+logging_steps: 100
+log_abstraction_diagnostics: true
+
+# Evaluation
+eval_strategy: "epoch"  # "epoch", "steps", "no"
+eval_steps: 500
+
+# Early stopping (set patience to enable)
+early_stopping_patience: null  # Number of epochs without improvement before stopping
+early_stopping_threshold: 0.0

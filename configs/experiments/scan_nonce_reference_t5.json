@@ -1,0 +1,6 @@
+{
+  "base": "scan_reference_t5.json",
+  "experiment_name": "scan_length_nonce_reference_t5",
+  "output_dir": "experiments/scan_length_nonce_reference_t5",
+  "data": {"nonce_primitives": true}
+}

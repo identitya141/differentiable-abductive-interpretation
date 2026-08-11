@@ -1,0 +1,6 @@
+{
+  "base": "scan_full_contrastive.json",
+  "experiment_name": "scan_length_lambda_000008",
+  "output_dir": "experiments/scan_length_lambda_000008",
+  "abstraction": {"abstraction_loss_weight": 0.000008}
+}

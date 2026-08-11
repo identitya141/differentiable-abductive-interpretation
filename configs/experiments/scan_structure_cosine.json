@@ -1,0 +1,8 @@
+{
+  "base": "scan_grounded.json",
+  "experiment_name": "scan_length_structure_cosine",
+  "output_dir": "experiments/scan_length_structure_cosine",
+  "abstraction": {
+    "composition_objective": "cosine"
+  }
+}

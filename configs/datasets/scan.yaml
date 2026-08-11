@@ -1,0 +1,40 @@
+# SCAN Dataset Configuration
+# Compositional command-to-action translation
+
+dataset: "scan"
+
+# SCAN split options:
+# - simple: Random split (sanity check)
+# - length: Train on short, test on long commands (RECOMMENDED)
+# - addprim_jump: Train without "jump", test with "jump"
+# - addprim_turn_left: Similar to above
+# - template_around_right: Template-based split
+dataset_split: "length"
+
+# Sequence lengths
+# SCAN commands are relatively short
+max_source_length: 64
+max_target_length: 128
+
+# Data loading
+num_workers: 4
+cache_dir: null  # Set to use HuggingFace cache
+
+# SCAN-specific settings
+# Type system for abstract interpretation
+type_vocabulary:
+  ACTION: 0
+  DIRECTION: 1
+  MODIFIER: 2
+  QUANTIFIER: 3
+  CONNECTIVE: 4
+  TURN_ACTION: 5
+  OUT_ACTION: 6
+  OUT_TURN: 7
+
+# Composition rules
+composition_rules:
+  - ["TURN_ACTION", "DIRECTION", "TURN_PHRASE"]
+  - ["ACTION", "MODIFIER", "MODIFIED_ACTION"]
+  - ["MODIFIED_ACTION", "DIRECTION", "DIRECTIONAL_ACTION"]
+  - ["ACTION", "QUANTIFIER", "REPEATED_ACTION"]

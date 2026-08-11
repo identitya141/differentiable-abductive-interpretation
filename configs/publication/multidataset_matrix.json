@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "seeds": [42, 123, 456, 789, 1024],
+  "baseline_registry": "all",
+  "proposed_method": "full_contrastive",
+  "benchmarks": [
+    {"dataset": "scan", "split": "length", "data_subdir": "scan", "grounded_config": "configs/experiments/scan_grounded.json", "full_config": "configs/experiments/scan_full_contrastive.json"},
+    {"dataset": "cogs", "split": "generalization", "data_subdir": "cogs/COGS-main/data", "grounded_config": "configs/experiments/cogs_grounded.json", "full_config": "configs/experiments/cogs_full_contrastive.json"},
+    {"dataset": "slog", "split": "structural_generalization", "data_subdir": "slog", "grounded_config": "configs/experiments/slog_grounded.json", "full_config": "configs/experiments/slog_full_contrastive.json"},
+    {"dataset": "cfq", "split": "mcd1", "data_subdir": "cfq", "grounded_config": "configs/experiments/cfq_mcd1_grounded.json", "full_config": "configs/experiments/cfq_mcd1_full_contrastive.json"},
+    {"dataset": "cfq", "split": "mcd2", "data_subdir": "cfq", "grounded_config": "configs/experiments/cfq_mcd2_grounded.json", "full_config": "configs/experiments/cfq_mcd2_full_contrastive.json"},
+    {"dataset": "cfq", "split": "mcd3", "data_subdir": "cfq", "grounded_config": "configs/experiments/cfq_mcd3_grounded.json", "full_config": "configs/experiments/cfq_mcd3_full_contrastive.json"}
+  ]
+}

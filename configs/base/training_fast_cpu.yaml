@@ -1,0 +1,65 @@
+# OPTIMIZED Training Configuration for DAI Experiments (64 CPU cores)
+# Contains training hyperparameters optimized for CPU parallel training
+
+# Reproducibility
+seed: 42
+deterministic: true
+
+# Optimization
+optimizer: "adamw"
+learning_rate: 3.0e-4
+weight_decay: 0.01
+adam_beta1: 0.9
+adam_beta2: 0.999
+adam_epsilon: 1.0e-8
+max_grad_norm: 1.0
+
+# Learning rate schedule
+lr_scheduler: "cosine_with_warmup"
+warmup_ratio: 0.1
+
+# Training duration
+num_epochs: 20
+
+# Batching - OPTIMIZED for 64 CPUs
+train_batch_size: 64          # INCREASED from 32 - larger batches for CPU efficiency
+eval_batch_size: 128          # INCREASED from 64
+gradient_accumulation_steps: 2  # Effective batch = 64 * 2 = 128
+
+# Data loading - OPTIMIZED for parallel CPU
+num_workers: 16               # INCREASED from 4 - use more CPU cores for data loading
+prefetch_factor: 4            # Prefetch multiple batches per worker
+pin_memory: false             # Not needed for CPU training
+
+# DAI-specific: Abstraction loss scheduling
+# NOTE: abstraction_loss_weight is the MAXIMUM weight after ramp-up
+# Raw abstraction loss can be ~100-1000, so weight should be small (0.001-0.01)
+abstraction_loss_weight: 0.001
+abstraction_warmup_epochs: 1
+abstraction_ramp_epochs: 4
+
+# Abstraction loss components
+concretization_weight: 1.0
+composition_weight: 0.5
+consistency_weight: 0.1
+entropy_regularization: 0.1
+
+# Mixed precision - DISABLED for CPU
+fp16: false
+bf16: false
+
+# Checkpointing
+save_strategy: "epoch"
+save_steps: 500
+save_total_limit: 3
+
+# Logging
+logging_steps: 50             # More frequent logging
+
+# Evaluation
+eval_strategy: "epoch"
+eval_steps: 500
+
+# Early stopping
+early_stopping_patience: 5    # Stop if no improvement for 5 epochs
+early_stopping_threshold: 0.001

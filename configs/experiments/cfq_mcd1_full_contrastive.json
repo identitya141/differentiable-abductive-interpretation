@@ -1,0 +1,9 @@
+{
+  "base": "cfq_mcd1_grounded.json",
+  "experiment_name": "cfq_mcd1_full_contrastive",
+  "output_dir": "experiments/publication/cfq/mcd1/full_contrastive",
+  "abstraction": {
+    "contrastive_weight": 0.0,
+    "structural_contrastive_weight": 1.0
+  }
+}

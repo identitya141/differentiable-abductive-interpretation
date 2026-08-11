@@ -1,0 +1,8 @@
+{
+  "base": "scan_full_contrastive.json",
+  "experiment_name": "scan_length_random_structure",
+  "output_dir": "experiments/scan_length_random_structure",
+  "data": {
+    "composition_structure_mode": "random"
+  }
+}

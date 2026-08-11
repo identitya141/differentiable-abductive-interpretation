@@ -1,0 +1,9 @@
+{
+  "base": "scan_grounded.json",
+  "experiment_name": "scan_length_full_structural_contrastive",
+  "output_dir": "experiments/scan_length_full_structural_contrastive",
+  "abstraction": {
+    "contrastive_weight": 0.0,
+    "structural_contrastive_weight": 1.0
+  }
+}

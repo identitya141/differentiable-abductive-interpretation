@@ -1,0 +1,8 @@
+{
+  "base": "scan_reference_t5.json",
+  "experiment_name": "scan_length_random_init_t5",
+  "output_dir": "experiments/scan_length_random_init_t5",
+  "model": {
+    "pretrained": false
+  }
+}

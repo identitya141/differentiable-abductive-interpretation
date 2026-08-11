@@ -1,0 +1,17 @@
+{
+  "base": "scan_grounded.json",
+  "experiment_name": "scan_length_simple_consistency",
+  "output_dir": "experiments/scan_length_simple_consistency",
+  "model": {
+    "cross_layer_consistency": false,
+    "consistency_weight": 0.0
+  },
+  "abstraction": {
+    "concretization_weight": 0.0,
+    "composition_weight": 1.0,
+    "consistency_weight": 0.0,
+    "entropy_regularization": 0.0,
+    "contrastive_weight": 0.0,
+    "structural_contrastive_weight": 0.0
+  }
+}

@@ -1,0 +1,22 @@
+baseline_type: random_init_t5
+name: Random-initialized T5
+model:
+  base_model: t5-small
+  max_source_length: 128
+  max_target_length: 128
+training:
+  # Scratch training needs a larger optimization budget than fine-tuning.
+  num_epochs: 60
+  train_batch_size: 32
+  eval_batch_size: 64
+  learning_rate: 1.0e-3
+  gradient_accumulation_steps: 1
+  lr_scheduler: inverse_sqrt
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+generation:
+  num_beams: 8
+  max_length: 128
+  constrain_to_training_targets: true
+  record_eos_diagnostics: true
+seed: 42

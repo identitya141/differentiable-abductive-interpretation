@@ -1,0 +1,8 @@
+{
+  "base": "scan_full_contrastive.json",
+  "experiment_name": "scan_length_no_entropy",
+  "output_dir": "experiments/scan_length_no_entropy",
+  "abstraction": {
+    "entropy_regularization": 0.0
+  }
+}

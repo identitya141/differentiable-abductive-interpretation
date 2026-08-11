@@ -1,0 +1,202 @@
+"""
+Tokenizer utilities for dataset-specific token handling.
+
+For SCAN and similar compositional tasks, adding action tokens as regular vocab
+tokens (NOT special tokens) dramatically improves generation quality by:
+1. Making each action atomic (1 token instead of 5-7 subwords)
+2. Eliminating beam search hallucinations like "I_TURN_RUN"
+3. Reducing sequence length and EOS pressure
+
+IMPORTANT: We use tokenizer.add_tokens() NOT add_special_tokens() because
+special tokens get stripped when decode(skip_special_tokens=True), which
+breaks metrics by producing empty strings.
+"""
+
+from typing import List, Optional, Tuple
+from transformers import PreTrainedTokenizer, T5Tokenizer
+
+
+# SCAN action vocabulary - these should be single tokens
+SCAN_ACTION_TOKENS = [
+    "I_WALK",
+    "I_RUN", 
+    "I_JUMP",
+    "I_LOOK",
+    "I_TURN_LEFT",
+    "I_TURN_RIGHT",
+]
+
+# COGS logical form tokens (common predicates/functions)
+COGS_SPECIAL_TOKENS = [
+    "lambda", "AND", "agent", "theme", "recipient", "goal", "source",
+    "ccomp", "xcomp", "nmod.on", "nmod.in", "nmod.beside", "nmod.to",
+]
+
+# CFQ SPARQL tokens
+CFQ_SPECIAL_TOKENS = [
+    "SELECT", "WHERE", "FILTER", "OPTIONAL", "DISTINCT",
+    "?x0", "?x1", "?x2", "?x3", "?x4", "?x5",
+    "M0", "M1", "M2", "M3", "M4", "M5",
+]
+
+
+def get_dataset_special_tokens(dataset_type: str) -> List[str]:
+    """
+    Get special tokens for a specific dataset type.
+    
+    Args:
+        dataset_type: One of "scan", "cogs", "cfq"
+        
+    Returns:
+        List of special tokens to add
+    """
+    dataset_type = dataset_type.lower().split("_")[0]  # "scan_length" -> "scan"
+    
+    if dataset_type == "scan":
+        return SCAN_ACTION_TOKENS
+    elif dataset_type in {"cogs", "slog"}:
+        return COGS_SPECIAL_TOKENS
+    elif dataset_type == "cfq":
+        return CFQ_SPECIAL_TOKENS
+    else:
+        return []
+
+
+def extend_tokenizer_for_dataset(
+    tokenizer: PreTrainedTokenizer,
+    dataset_type: str,
+    verbose: bool = True,
+) -> Tuple[PreTrainedTokenizer, int]:
+    """
+    Extend tokenizer with dataset-specific special tokens.
+    
+    Args:
+        tokenizer: Base tokenizer (e.g., T5Tokenizer)
+        dataset_type: Dataset type for selecting tokens
+        verbose: Whether to print token info
+        
+    Returns:
+        Tuple of (extended tokenizer, number of tokens added)
+    """
+    special_tokens = get_dataset_special_tokens(dataset_type)
+    
+    if not special_tokens:
+        if verbose:
+            print(f"No special tokens defined for dataset: {dataset_type}")
+        return tokenizer, 0
+    
+    # Check which tokens are not already in vocabulary
+    tokens_to_add = []
+    for token in special_tokens:
+        # Check if token exists as single token
+        encoded = tokenizer.encode(token, add_special_tokens=False)
+        if len(encoded) > 1:
+            tokens_to_add.append(token)
+            if verbose:
+                print(f"  '{token}' currently encodes to {len(encoded)} tokens: {encoded}")
+    
+    if not tokens_to_add:
+        if verbose:
+            print(f"All {len(special_tokens)} tokens already atomic in vocabulary")
+        return tokenizer, 0
+    
+    # Add tokens as REGULAR vocab tokens, NOT special tokens.
+    # CRITICAL: add_special_tokens() would make skip_special_tokens=True
+    # strip them during decoding, breaking metrics (empty strings = false 100% EM).
+    num_added = tokenizer.add_tokens(tokens_to_add, special_tokens=False)
+    
+    if verbose:
+        print(f"Added {num_added} vocab tokens (NOT special tokens):")
+        for token in tokens_to_add:
+            token_id = tokenizer.convert_tokens_to_ids(token)
+            print(f"  '{token}' -> {token_id}")
+        print(f"New vocabulary size: {len(tokenizer)}")
+    
+    return tokenizer, num_added
+
+
+def verify_tokenization(
+    tokenizer: PreTrainedTokenizer,
+    dataset_type: str,
+) -> bool:
+    """
+    Verify that special tokens are correctly tokenized as single tokens.
+    
+    Args:
+        tokenizer: Tokenizer to verify
+        dataset_type: Dataset type
+        
+    Returns:
+        True if all tokens are atomic
+    """
+    special_tokens = get_dataset_special_tokens(dataset_type)
+    all_atomic = True
+    
+    for token in special_tokens:
+        encoded = tokenizer.encode(token, add_special_tokens=False)
+        if len(encoded) != 1:
+            print(f"WARNING: '{token}' not atomic, encodes to {len(encoded)} tokens")
+            all_atomic = False
+    
+    return all_atomic
+
+
+def create_scan_tokenizer(
+    base_model: str = "google-t5/t5-small",
+    verbose: bool = True,
+) -> T5Tokenizer:
+    """
+    Create a T5 tokenizer extended with SCAN action tokens.
+    
+    Args:
+        base_model: Base model name
+        verbose: Whether to print info
+        
+    Returns:
+        Extended tokenizer
+    """
+    if verbose:
+        print(f"Creating SCAN tokenizer from {base_model}")
+        print(f"Adding {len(SCAN_ACTION_TOKENS)} action tokens as special tokens")
+    
+    tokenizer = T5Tokenizer.from_pretrained(base_model)
+    
+    if verbose:
+        print(f"Original vocabulary size: {len(tokenizer)}")
+        print("\nBefore extension:")
+        for token in SCAN_ACTION_TOKENS:
+            encoded = tokenizer.encode(token, add_special_tokens=False)
+            decoded_pieces = [tokenizer.decode([t]) for t in encoded]
+            print(f"  '{token}' -> {len(encoded)} tokens: {decoded_pieces}")
+    
+    tokenizer, num_added = extend_tokenizer_for_dataset(
+        tokenizer, "scan", verbose=verbose
+    )
+    
+    if verbose:
+        print("\nAfter extension:")
+        for token in SCAN_ACTION_TOKENS:
+            encoded = tokenizer.encode(token, add_special_tokens=False)
+            print(f"  '{token}' -> {len(encoded)} token(s): {encoded}")
+    
+    return tokenizer
+
+
+# Example usage / verification
+if __name__ == "__main__":
+    print("=" * 60)
+    print("Testing SCAN tokenizer extension")
+    print("=" * 60)
+    
+    tokenizer = create_scan_tokenizer()
+    
+    print("\n" + "=" * 60)
+    print("Testing example sequence")
+    print("=" * 60)
+    
+    test_seq = "I_TURN_LEFT I_WALK I_TURN_LEFT I_WALK I_TURN_RIGHT I_JUMP"
+    tokens = tokenizer.encode(test_seq, add_special_tokens=False)
+    print(f"\nSequence: {test_seq}")
+    print(f"Tokens: {tokens}")
+    print(f"Decoded: {[tokenizer.decode([t]) for t in tokens]}")
+    print(f"Length: {len(tokens)} tokens (should be 6 with atomic actions)")

@@ -1,0 +1,12 @@
+{
+  "base": "scan_grounded.json",
+  "experiment_name": "cogs_generalization_grounded",
+  "output_dir": "experiments/publication/cogs/generalization/grounded",
+  "data": {
+    "dataset": "cogs",
+    "dataset_split": "generalization",
+    "max_source_length": 128,
+    "max_target_length": 256,
+    "data_dir": "data/cogs/COGS-main/data"
+  }
+}

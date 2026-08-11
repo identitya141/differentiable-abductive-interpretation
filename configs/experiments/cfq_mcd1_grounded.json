@@ -1,0 +1,13 @@
+{
+  "base": "scan_grounded.json",
+  "experiment_name": "cfq_mcd1_grounded",
+  "output_dir": "experiments/publication/cfq/mcd1/grounded",
+  "data": {
+    "dataset": "cfq",
+    "dataset_split": "mcd1",
+    "max_source_length": 128,
+    "max_target_length": 256,
+    "data_dir": "data/cfq",
+    "validation_fraction": 0.1
+  }
+}

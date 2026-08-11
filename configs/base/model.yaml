@@ -1,0 +1,28 @@
+# Base Model Configuration for DAI Experiments
+# This file contains default model hyperparameters
+
+# Base transformer model
+base_model: "t5-small"  # Options: t5-small, t5-base, t5-large
+
+# Abstract interpretation domain
+domain_type: "type_monotonicity"  # Options: type, interval, monotonicity, type_monotonicity
+
+# Which encoder layers to apply abstraction constraints
+# For T5-small (6 layers): recommend [2, 4]
+# For T5-base (12 layers): recommend [3, 6, 9]
+constrained_layers: [2, 4]
+
+# Type domain settings
+num_types: 16  # Number of abstract type categories
+type_embed_dim: 64  # Dimension of type embeddings
+
+# Monotonicity domain settings  
+monotonicity_dim: 64  # Dimension for monotonicity tracking
+
+# Projection settings
+apply_projection: false  # Whether to project hidden states during training
+projection_strength: 0.1  # How strongly to project (0-1)
+
+# Cross-layer consistency
+cross_layer_consistency: true  # Enforce consistent abstractions across layers
+consistency_weight: 0.1  # Weight for cross-layer consistency loss

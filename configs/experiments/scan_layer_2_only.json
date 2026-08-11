@@ -1,0 +1,8 @@
+{
+  "base": "scan_full_contrastive.json",
+  "experiment_name": "scan_length_layer_2_only",
+  "output_dir": "experiments/scan_length_layer_2_only",
+  "model": {
+    "constrained_layers": [2]
+  }
+}

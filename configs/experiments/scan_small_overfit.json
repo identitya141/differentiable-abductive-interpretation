@@ -1,0 +1,27 @@
+{
+  "base": "scan_full_contrastive.json",
+  "experiment_name": "scan_small_overfit_gate",
+  "output_dir": "experiments/scan_small_overfit_gate",
+  "training": {
+    "max_steps": 3000,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0,
+    "train_batch_size": 8,
+    "eval_batch_size": 8,
+    "gradient_accumulation_steps": 1,
+    "warmup_ratio": 0.0,
+    "lr_scheduler": "constant",
+    "fp16": true,
+    "fp16_initial_scale": 1024.0
+  },
+  "data": {
+    "num_workers": 0
+  },
+  "abstraction": {
+    "warmup_steps": 50,
+    "ramp_steps": 100
+  },
+  "eval_strategy": "no",
+  "save_strategy": "best",
+  "logging_steps": 25
+}

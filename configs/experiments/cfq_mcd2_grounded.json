@@ -1,0 +1,8 @@
+{
+  "base": "cfq_mcd1_grounded.json",
+  "experiment_name": "cfq_mcd2_grounded",
+  "output_dir": "experiments/publication/cfq/mcd2/grounded",
+  "data": {
+    "dataset_split": "mcd2"
+  }
+}

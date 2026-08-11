@@ -1,0 +1,8 @@
+{
+  "base": "cfq_mcd1_full_contrastive.json",
+  "experiment_name": "cfq_mcd2_full_contrastive",
+  "output_dir": "experiments/publication/cfq/mcd2/full_contrastive",
+  "data": {
+    "dataset_split": "mcd2"
+  }
+}

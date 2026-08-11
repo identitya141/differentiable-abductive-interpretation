@@ -1,0 +1,8 @@
+{
+  "base": "scan_full_contrastive.json",
+  "experiment_name": "scan_length_no_composition_loss",
+  "output_dir": "experiments/scan_length_no_composition_loss",
+  "abstraction": {
+    "composition_weight": 0.0
+  }
+}
