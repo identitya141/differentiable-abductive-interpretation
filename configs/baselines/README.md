@@ -9,8 +9,8 @@ Configuration files for baseline models used in comparison with DAI.
 | `vanilla_t5.yaml` | Vanilla T5 | Standard T5 fine-tuning without modifications |
 | `random_init_t5.yaml` | Random-init T5 | Architecture-matched scratch T5 with a 60-epoch inverse-square-root schedule, target-vocabulary decoding constraint, and EOS diagnostics |
 | `tree_linearized_t5.yaml` | Tree-linearized T5 | T5 trained on linearized parse-tree inputs |
-| `random_structure.yaml` | Random structure | Structural DAI control with random composition structure |
-| `shuffled_structure.yaml` | Shuffled structure | Structural DAI control with structures shuffled across examples |
+| `random_structure.yaml` | Random operator | Matched-span control with dataset-valid random operator labels |
+| `shuffled_structure.yaml` | Shuffled operator | Matched-span control with operator labels shuffled within examples |
 | `simple_consistency.yaml` | Simple consistency | Composition consistency without structural contrastive loss |
 | `cot_t5.yaml` | Chain-of-Thought | T5 with "Let's think step by step" prompting |
 | `scratchpad_t5.yaml` | Scratchpad | T5 with intermediate computation space |

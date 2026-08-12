@@ -6,7 +6,7 @@
     "dataset": "cogs",
     "dataset_split": "generalization",
     "max_source_length": 128,
-    "max_target_length": 256,
+    "max_target_length": 1024,
     "data_dir": "data/cogs/COGS-main/data"
   }
 }

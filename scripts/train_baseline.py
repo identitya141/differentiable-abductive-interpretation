@@ -65,7 +65,11 @@ from src.evaluation.compositional_metrics import CompositionParser
 from src.evaluation.metrics import normalize_batch_for_eval, normalize_for_eval
 from src.utils.reproducibility import set_seed
 from src.utils.benchmark_contract import get_benchmark_contract, paired_holdout_indices
-from src.utils.tokenizer_utils import extend_tokenizer_for_dataset
+from src.utils.tokenizer_utils import (
+    extend_tokenizer_for_dataset,
+    resize_with_deterministic_added_token_init,
+)
+from src.utils.schedulers import hf_scheduler_name
 import logging
 import numpy as np
 import yaml
@@ -78,6 +82,40 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def build_prediction_artifact_rows(
+    *, metadata_rows, predictions, targets, normalized_predictions,
+    normalized_targets, experiment_name, method, dataset_name, split, seed,
+):
+    """Build the runner-independent prediction schema used by paper analyses."""
+    if not (
+        len(metadata_rows) == len(predictions) == len(targets)
+        == len(normalized_predictions) == len(normalized_targets)
+    ):
+        raise ValueError("Prediction outputs and metadata must have identical lengths")
+    parser = CompositionParser(dataset_name)
+    rows = []
+    for index, (metadata, prediction, target, normalized_prediction, normalized_target) in enumerate(zip(
+        metadata_rows, predictions, targets, normalized_predictions, normalized_targets
+    )):
+        input_text = metadata.get("input_text")
+        if not isinstance(input_text, str) or not input_text:
+            raise ValueError(f"Missing input_text metadata for prediction row {index}")
+        depth = metadata.get("composition_depth")
+        if not isinstance(depth, int) or depth < 0:
+            depth = parser.get_depth(input_text)
+        rows.append({
+            "example_index": index, "experiment_name": experiment_name,
+            "method": method, "dataset": dataset_name, "split": split,
+            "seed": seed, "input": input_text, "composition_depth": depth,
+            "generalization_category": metadata.get("generalization_category"),
+            "prediction": prediction, "target": target,
+            "normalized_prediction": normalized_prediction,
+            "normalized_target": normalized_target,
+            "correct": normalized_prediction == normalized_target,
+            "composition_violation": None,
+        })
+    return rows
 
 def setup_file_logging(output_dir: Path) -> logging.FileHandler:
     """Set up file handler for logging to .txt file for easy copying."""
@@ -157,6 +195,7 @@ def load_baseline_dataset(
     baseline_type: str = "vanilla",
     model=None,
     split_seed: int = 42,
+    publication_mode: bool = True,
 ):
     """
     Load and tokenize dataset for baseline training.
@@ -284,6 +323,11 @@ def load_baseline_dataset(
             break
     
     # Fall back to HuggingFace hub
+    if dataset is None and publication_mode:
+        raise FileNotFoundError(
+            f"Canonical staged {dataset_name}/{split or ''} dataset was not found "
+            f"under {data_dir}; publication runs forbid Internet fallback"
+        )
     if dataset is None:
         print(f"Loading dataset '{dataset_name}' from HuggingFace Hub")
         if split:
@@ -328,6 +372,7 @@ def load_baseline_dataset(
 
     def tokenize_function(examples):
         inputs, targets = raw_text(examples)
+        categories = list(examples.get("category", [None] * len(inputs)))
         if baseline_type == "tree_linearized_t5":
             if dataset_name == "scan":
                 from src.data.scan_composition import linearize_scan_command
@@ -347,6 +392,15 @@ def load_baseline_dataset(
                 for target in targets
             ]
 
+        untruncated_sources = tokenizer(
+            list(inputs), truncation=False, add_special_tokens=True
+        )["input_ids"]
+        too_long_sources = [len(ids) for ids in untruncated_sources if len(ids) > max_length]
+        if too_long_sources:
+            raise ValueError(
+                f"Source requires up to {max(too_long_sources)} tokens but the benchmark "
+                f"contract permits {max_length}; refusing truncation"
+            )
         untruncated_targets = tokenizer(
             text_target=list(targets), truncation=False, add_special_tokens=True
         )["input_ids"]
@@ -360,14 +414,14 @@ def load_baseline_dataset(
         model_inputs = tokenizer(
             inputs,
             max_length=max_length,
-            truncation=True,
+            truncation=False,
             padding="max_length",
         )
         
         labels = tokenizer(
             targets,
             max_length=max_target_length,
-            truncation=True,
+            truncation=False,
             padding="max_length",
         )
         
@@ -378,6 +432,10 @@ def load_baseline_dataset(
             for seq in labels["input_ids"]
         ]
         model_inputs["labels"] = label_ids
+        model_inputs["input_text"] = list(inputs)
+        model_inputs["generalization_category"] = categories
+        parser = CompositionParser(dataset_name)
+        model_inputs["composition_depth"] = [parser.get_depth(text) for text in inputs]
         return model_inputs
     
     # Get column names to remove after tokenization
@@ -405,16 +463,63 @@ def load_config_file(config_path):
         return yaml.safe_load(handle) or {}
 
 
-def load_llama_dataset(dataset_name, data_dir, split, model, max_source_length, max_target_length):
+def load_llama_dataset(
+    dataset_name, data_dir, split, model, max_source_length, max_target_length,
+    *, publication_mode=True, split_seed=42,
+):
     """Build causal-LM examples with loss masked over the instruction prompt."""
-    from datasets import load_from_disk, load_dataset as hf_load
-    dataset_path = data_dir / dataset_name / split if split else data_dir / dataset_name
+    from datasets import Dataset, DatasetDict, load_from_disk, load_dataset as hf_load
+    # ``data_dir`` is already the benchmark root selected by the matrix
+    # (for example .../data/scan), so appending dataset_name would duplicate it.
+    dataset_path = Path(data_dir) / split if dataset_name == "scan" and split else Path(data_dir)
     dataset = None
-    for subdir in ["", "hf_dataset", "main"]:
+    def rows_dataset(rows):
+        return Dataset.from_dict({
+            "input": [row[0] for row in rows],
+            "output": [row[1] for row in rows],
+            "category": [row[2] for row in rows],
+        })
+    if dataset_name == "scan":
+        train_path = dataset_path / f"tasks_train_{split}.txt"
+        test_path = dataset_path / f"tasks_test_{split}.txt"
+        if train_path.is_file() and test_path.is_file():
+            def scan_rows(path):
+                rows = []
+                for line in path.read_text(encoding="utf-8").splitlines():
+                    source, target = line.split("OUT:", 1)
+                    rows.append((source.removeprefix("IN:").strip(), target.strip(), "length"))
+                return rows
+            train = rows_dataset(scan_rows(train_path))
+            train_ids, val_ids = paired_holdout_indices(len(train), 0.1, split_seed)
+            dataset = DatasetDict({
+                "train": train.select(train_ids), "validation": train.select(val_ids),
+                "iid_test": train.select(val_ids), "test": rows_dataset(scan_rows(test_path)),
+            })
+    elif dataset_name in {"cogs", "slog"}:
+        if dataset_name == "cogs":
+            names = {"train": "train.tsv", "validation": "dev.tsv", "iid_test": "test.tsv", "test": "gen.tsv"}
+        else:
+            names = {"train": "cogs_LF/train.tsv", "validation": "cogs_LF/dev.tsv", "iid_test": "cogs_LF/test.tsv", "test": "generalization_sets/gen_cogsLF.tsv"}
+        if all((dataset_path / value).is_file() for value in names.values()):
+            def tsv_rows(path):
+                return [
+                    (fields[0], fields[1], fields[2] if len(fields) > 2 else None)
+                    for fields in (
+                        line.rstrip("\n").split("\t")
+                        for line in path.read_text(encoding="utf-8").splitlines()
+                    )
+                ]
+            dataset = DatasetDict({key: rows_dataset(tsv_rows(dataset_path / value)) for key, value in names.items()})
+    for subdir in ["", "hf_dataset", "main"] if dataset is None else []:
         candidate = dataset_path / subdir if subdir else dataset_path
         if candidate.exists() and ((candidate / "dataset_dict.json").exists() or (candidate / "train").exists()):
             dataset = load_from_disk(str(candidate))
             break
+    if dataset is None and publication_mode:
+        raise FileNotFoundError(
+            f"Canonical staged {dataset_name}/{split or ''} dataset was not found "
+            f"under {data_dir}; publication runs forbid Internet fallback"
+        )
     if dataset is None:
         dataset = hf_load(dataset_name, name=split, trust_remote_code=True) if split else hf_load(dataset_name, trust_remote_code=True)
 
@@ -432,16 +537,25 @@ def load_llama_dataset(dataset_name, data_dir, split, model, max_source_length, 
         else:
             sources = examples.get("input", examples.get("text", []))
             targets = examples.get("output", examples.get("label", []))
-        result = {"input_ids": [], "attention_mask": [], "labels": [], "prompt_length": [], "target_ids": []}
-        for source, target in zip(sources, targets):
-            prompt_ids = tokenizer(model.format_prompt(source), truncation=True, max_length=max_source_length, add_special_tokens=True)["input_ids"]
-            target_ids = tokenizer(str(target) + eos, truncation=True, max_length=max_target_length, add_special_tokens=False)["input_ids"]
+        result = {"input_ids": [], "attention_mask": [], "labels": [], "prompt_length": [], "target_ids": [], "input_text": [], "generalization_category": [], "composition_depth": []}
+        categories = examples.get("category", [None] * len(sources))
+        parser = CompositionParser(dataset_name)
+        for source, target, category in zip(sources, targets, categories):
+            prompt_ids = tokenizer(model.format_prompt(source), truncation=False, add_special_tokens=True)["input_ids"]
+            target_ids = tokenizer(str(target) + eos, truncation=False, add_special_tokens=False)["input_ids"]
+            if len(prompt_ids) > max_source_length:
+                raise ValueError(f"Source requires {len(prompt_ids)} tokens; limit is {max_source_length}")
+            if len(target_ids) > max_target_length:
+                raise ValueError(f"Target requires {len(target_ids)} tokens; limit is {max_target_length}")
             full_ids = prompt_ids + target_ids
             result["input_ids"].append(full_ids)
             result["attention_mask"].append([1] * len(full_ids))
             result["labels"].append([-100] * len(prompt_ids) + target_ids)
             result["prompt_length"].append(len(prompt_ids))
             result["target_ids"].append(target_ids)
+            result["input_text"].append(str(source))
+            result["generalization_category"].append(category)
+            result["composition_depth"].append(parser.get_depth(str(source)))
         return result
 
     columns = dataset[next(iter(dataset))].column_names
@@ -520,6 +634,7 @@ def train_baseline(
     constrain_to_training_targets: bool = False,
     record_eos_diagnostics: bool = True,
     model_kwargs: dict = None,
+    publication_mode: bool = True,
 ):
     """Train a baseline model."""
     
@@ -600,7 +715,9 @@ def train_baseline(
         model = create_baseline(
             baseline_type, config, dataset_type=dataset_name, **model_kwargs
         )
-        model._hf_model.resize_token_embeddings(len(tokenizer))
+        resize_with_deterministic_added_token_init(
+            model._hf_model, len(tokenizer), seed=contract.data_split_seed
+        )
     
     # Load dataset
     print("\nLoading dataset...")
@@ -608,6 +725,8 @@ def train_baseline(
         dataset = load_llama_dataset(
             dataset_name, data_dir, split, model,
             max_source_length, max_target_length,
+            publication_mode=publication_mode,
+            split_seed=contract.data_split_seed,
         )
     else:
         dataset = load_baseline_dataset(
@@ -617,6 +736,7 @@ def train_baseline(
             baseline_type=baseline_type,
             model=model,
             split_seed=contract.data_split_seed,
+            publication_mode=publication_mode,
         )
 
     if constrain_to_training_targets:
@@ -717,9 +837,7 @@ def train_baseline(
         learning_rate=learning_rate,
         weight_decay=weight_decay,
         warmup_ratio=warmup_ratio,
-        lr_scheduler_type=(
-            "cosine" if lr_scheduler == "cosine_with_warmup" else lr_scheduler
-        ),
+        lr_scheduler_type=hf_scheduler_name(lr_scheduler),
         logging_dir=str(output_dir / "logs"),
         logging_steps=100,
         evaluation_strategy="epoch",  # Fixed: was 'eval_strategy'
@@ -830,29 +948,16 @@ def train_baseline(
     final_metrics, predictions, targets, normalized_predictions, normalized_targets = evaluate_split(ood_dataset)
 
     experiment_name = f"{dataset_name}_{split}_{baseline_type}"
-    parser = CompositionParser(dataset_name)
     prediction_path = output_dir / f"predictions_seed{seed}.jsonl"
+    metadata_rows = [ood_dataset[index] for index in range(len(ood_dataset))]
+    artifact_rows = build_prediction_artifact_rows(
+        metadata_rows=metadata_rows, predictions=predictions, targets=targets,
+        normalized_predictions=normalized_predictions,
+        normalized_targets=normalized_targets, experiment_name=experiment_name,
+        method=baseline_type, dataset_name=dataset_name, split=split, seed=seed,
+    )
     with prediction_path.open("w", encoding="utf-8") as handle:
-        for index, (prediction, target, normalized_prediction, normalized_target) in enumerate(zip(
-            predictions, targets, normalized_predictions, normalized_targets
-        )):
-            row = {
-                "example_index": index,
-                "experiment_name": experiment_name,
-                "method": baseline_type,
-                "dataset": dataset_name,
-                "split": split,
-                "seed": seed,
-                "input": "",
-                "composition_depth": parser.get_depth(""),
-                "generalization_category": None,
-                "prediction": prediction,
-                "target": target,
-                "normalized_prediction": normalized_prediction,
-                "normalized_target": normalized_target,
-                "correct": normalized_prediction == normalized_target,
-                "composition_violation": None,
-            }
+        for row in artifact_rows:
             handle.write(json.dumps(row, sort_keys=True) + "\n")
     
     # Compute training stats for fair comparison reporting
@@ -973,6 +1078,10 @@ def main():
                         help="Base model to use")
     parser.add_argument("--config", type=str, default=None,
                         help="Path to baseline config YAML file")
+    parser.add_argument(
+        "--allow-network-data-fallback", action="store_true",
+        help="Permit non-publication exploratory runs to download missing data",
+    )
     
     args = parser.parse_args()
     file_config = load_config_file(args.config)
@@ -1031,6 +1140,7 @@ def main():
         max_source_length=model_config.get("max_source_length", 128),
         max_target_length=model_config.get("max_target_length", 128),
         model_kwargs=model_kwargs,
+        publication_mode=not args.allow_network_data_fallback,
     )
 
 

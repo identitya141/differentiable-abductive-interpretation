@@ -1,0 +1,8 @@
+{
+  "base": "scan_full_contrastive.json",
+  "experiment_name": "scan_length_topology_corruption_control",
+  "output_dir": "experiments/scan_length_topology_corruption_control",
+  "data": {
+    "composition_structure_mode": "topology"
+  }
+}

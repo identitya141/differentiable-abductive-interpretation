@@ -46,6 +46,18 @@ class ComparisonSummaryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate control"):
             summary_module.summarize_reports([report, report])
 
+    def test_primary_family_contract_is_enforced(self):
+        reports = [self._report(f"control_{i}", 0.1, [0.1]) for i in range(6)]
+        for report in reports:
+            report["benchmark"] = {"dataset": "scan", "split": "length"}
+        summary = summary_module.summarize_reports(
+            reports, expected_dataset="scan", expected_split="length",
+            expected_family_size=6,
+        )
+        self.assertEqual(summary["family_size"], 6)
+        with self.assertRaisesRegex(ValueError, "family size"):
+            summary_module.summarize_reports(reports[:5], expected_family_size=6)
+
     @staticmethod
     def _report(control, p_value, differences):
         return {

@@ -110,8 +110,8 @@ Array task mapping:
 | 2 | Bottleneck + entropy | 42, 123, 456, 789, 1024 |
 | 3 | Contrastive control | 42, 123, 456, 789, 1024 |
 | 4 | No auxiliary objective | 42, 123, 456, 789, 1024 |
-| 5 | Shuffled structures | 42, 123, 456, 789, 1024 |
-| 6 | Random structures | 42, 123, 456, 789, 1024 |
+| 5 | Shuffled-operator control | 42, 123, 456, 789, 1024 |
+| 6 | Random-operator control | 42, 123, 456, 789, 1024 |
 
 Monitor the array and its dependent analysis job:
 
@@ -436,7 +436,8 @@ tar -czf ~/dai-results-$(date +%Y%m%d).tar.gz checkpoints/ results/
 --num_workers 8                    # Match CPUs allocated
 
 # Or: Pre-download datasets to scratch
-python scripts/download_data.py --dataset all --output /scratch/$USER/dai-research/data
+python scripts/download_data.py --all --output data
+bash slurm/stage_publication_data.sh sapelo2
 ```
 
 ---

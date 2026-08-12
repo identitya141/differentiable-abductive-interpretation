@@ -6,7 +6,7 @@
     "dataset": "cfq",
     "dataset_split": "mcd1",
     "max_source_length": 128,
-    "max_target_length": 256,
+    "max_target_length": 640,
     "data_dir": "data/cfq",
     "validation_fraction": 0.1
   }

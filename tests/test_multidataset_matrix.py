@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 import unittest
+import yaml
 
 from scripts.unified_experiment_matrix import expand_runs, load_manifest
 
@@ -36,6 +37,21 @@ class MultidatasetMatrixTests(unittest.TestCase):
                 ("cfq", "mcd3"),
             },
         )
+
+    def test_every_unique_matrix_configuration_parses_before_submission(self):
+        checked = set()
+        for run in self.runs:
+            path = ROOT / run["config"]
+            if path in checked:
+                continue
+            checked.add(path)
+            if path.suffix == ".json":
+                payload = json.loads(path.read_text())
+            else:
+                payload = yaml.safe_load(path.read_text())
+            self.assertIsInstance(payload, dict)
+            self.assertTrue(payload)
+            self.assertIn(run["runner"], {"baseline", "dai_control", "proposed"})
 
     def test_seeds_are_paired_and_unique(self):
         self.assertEqual(

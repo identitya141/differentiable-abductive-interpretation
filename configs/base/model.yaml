@@ -5,7 +5,7 @@
 base_model: "t5-small"  # Options: t5-small, t5-base, t5-large
 
 # Abstract interpretation domain
-domain_type: "type_monotonicity"  # Options: type, interval, monotonicity, type_monotonicity
+domain_type: "type"  # Frozen primary; options: type, interval, monotonicity, type_monotonicity
 
 # Which encoder layers to apply abstraction constraints
 # For T5-small (6 layers): recommend [2, 4]
@@ -24,5 +24,5 @@ apply_projection: false  # Whether to project hidden states during training
 projection_strength: 0.1  # How strongly to project (0-1)
 
 # Cross-layer consistency
-cross_layer_consistency: true  # Enforce consistent abstractions across layers
+cross_layer_consistency: false  # Frozen primary disables cross-layer consistency
 consistency_weight: 0.1  # Weight for cross-layer consistency loss

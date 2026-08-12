@@ -1,4 +1,4 @@
-baseline_type: shuffled_structure
+baseline_type: shuffled_structure  # Historical key; this is a shuffled-operator control.
 name: Shuffled-structure T5
 composition_structure_mode: shuffled
 model:

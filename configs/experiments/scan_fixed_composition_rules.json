@@ -1,7 +1,7 @@
 {
   "base": "scan_full_contrastive.json",
-  "experiment_name": "scan_length_fixed_composition_rules",
-  "output_dir": "experiments/scan_length_fixed_composition_rules",
+  "experiment_name": "scan_length_frozen_random_composition_rules",
+  "output_dir": "experiments/scan_length_frozen_random_composition_rules",
   "model": {
     "composition_rules_trainable": false
   }

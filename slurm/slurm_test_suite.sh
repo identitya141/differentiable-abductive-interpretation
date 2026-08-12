@@ -40,7 +40,6 @@ python - <<'PY' \
 import os
 from pathlib import Path
 import shlex
-import site
 import sys
 
 import torch
@@ -55,8 +54,6 @@ sys.path.insert(
         / "site-packages"
     ),
 )
-sys.path.append(site.getusersitepackages())
-
 import pytest
 
 test_paths = shlex.split(os.environ.get("TEST_PATHS", "tests"))

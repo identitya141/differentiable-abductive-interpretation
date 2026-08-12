@@ -33,6 +33,9 @@ python scripts/validate_slog.py \
 python scripts/validate_cfq_compositions.py \
     --data-dir "$SCRATCH_DIR/data/cfq" \
     --output "$OUTPUT_DIR/cfq.json"
+python scripts/validate_publication_transformations.py \
+    --data-root "$SCRATCH_DIR/data" \
+    --output "$OUTPUT_DIR/tokenized_transformations.json"
 
 python - "$OUTPUT_DIR" <<'PY'
 import json
@@ -51,5 +54,5 @@ for dataset in ("scan", "cogs", "slog", "cfq"):
     path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
 
-(cd "$OUTPUT_DIR" && sha256sum scan.json cogs.json slog.json cfq.json > SHA256SUMS)
+(cd "$OUTPUT_DIR" && sha256sum scan.json cogs.json slog.json cfq.json tokenized_transformations.json > SHA256SUMS)
 (cd "$OUTPUT_DIR" && sha256sum --check SHA256SUMS)

@@ -19,9 +19,9 @@ class BenchmarkContractTests(unittest.TestCase):
     def test_dataset_limits_and_decoding_are_shared(self):
         expected = {
             "scan": (64, 128),
-            "cogs": (128, 256),
-            "slog": (256, 512),
-            "cfq": (128, 256),
+            "cogs": (128, 1024),
+            "slog": (256, 1024),
+            "cfq": (128, 640),
         }
         for dataset, lengths in expected.items():
             with self.subTest(dataset=dataset):

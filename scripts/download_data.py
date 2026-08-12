@@ -32,7 +32,8 @@ from tqdm import tqdm
 DATASET_CONFIGS = {
     "scan": {
         "name": "SCAN",
-        "url": "https://github.com/brendenlake/SCAN/archive/refs/heads/master.zip",
+        "revision": "c4b756cbc010d75c912f16c42c8f15dc6b7e6c8f",
+        "url": "https://github.com/brendenlake/SCAN/archive/c4b756cbc010d75c912f16c42c8f15dc6b7e6c8f.zip",
         "hf_dataset": "scan",
         "version": "1.0.0",
         "expected_files": ["simple_split", "length_split", "add_prim_split"],
@@ -40,7 +41,8 @@ DATASET_CONFIGS = {
     },
     "cogs": {
         "name": "COGS",
-        "url": "https://github.com/najoungkim/COGS/archive/refs/heads/main.zip",
+        "revision": "165a7b669eade971fa47bf568a2e51925360fed8",
+        "url": "https://github.com/najoungkim/COGS/archive/165a7b669eade971fa47bf568a2e51925360fed8.zip",
         "hf_dataset": "cogs",
         "version": "1.0.0",
         "expected_files": ["train.tsv", "dev.tsv", "test.tsv", "gen.tsv"],
@@ -48,7 +50,8 @@ DATASET_CONFIGS = {
     },
     "slog": {
         "name": "SLOG",
-        "url": "https://raw.githubusercontent.com/bingzhilee/SLOG/main/data/",
+        "revision": "1c55df85006d58b842520c79dcb8e1b43df2836f",
+        "url": "https://raw.githubusercontent.com/bingzhilee/SLOG/1c55df85006d58b842520c79dcb8e1b43df2836f/data/",
         "hf_dataset": None,
         "version": "main",
         "expected_files": [
@@ -63,6 +66,7 @@ DATASET_CONFIGS = {
         "name": "CFQ",
         "url": "https://storage.googleapis.com/cfq_dataset/cfq1.1.tar.gz",
         "hf_dataset": "cfq",
+        "hf_revision": "6627f9390245fe11ef09f349b82f6c89f577aabf",
         "version": "1.1",
         "expected_files": ["dataset.json"],
         "description": "Compositional Freebase Questions",
@@ -118,14 +122,19 @@ def download_hf_dataset(dataset_name: str, output_dir: Path, version: str = "mai
         
         if dataset_name == "scan":
             # SCAN has multiple splits
+            successes = []
             for split in ["simple", "length", "addprim_jump", "addprim_turn_left"]:
                 try:
                     ds = load_dataset("scan", split, trust_remote_code=True)
                     save_path = output_dir / f"{split}"
                     ds.save_to_disk(str(save_path))
                     print(f"  Saved {split} to {save_path}")
+                    successes.append(True)
                 except Exception as e:
                     print(f"  Warning: Could not download {split}: {e}")
+                    successes.append(False)
+            if not all(successes):
+                return False
         
         elif dataset_name == "cogs":
             ds = load_dataset("cogs", trust_remote_code=True)
@@ -133,14 +142,23 @@ def download_hf_dataset(dataset_name: str, output_dir: Path, version: str = "mai
             print(f"  Saved to {output_dir / 'hf_dataset'}")
         
         elif dataset_name == "cfq":
+            successes = []
             for split in ["mcd1", "mcd2", "mcd3"]:
                 try:
-                    ds = load_dataset("cfq", split, trust_remote_code=True)
+                    ds = load_dataset(
+                        "cfq", split,
+                        revision=DATASET_CONFIGS["cfq"]["hf_revision"],
+                        trust_remote_code=True,
+                    )
                     save_path = output_dir / f"{split}"
                     ds.save_to_disk(str(save_path))
                     print(f"  Saved {split} to {save_path}")
+                    successes.append(True)
                 except Exception as e:
                     print(f"  Warning: Could not download {split}: {e}")
+                    successes.append(False)
+            if not all(successes):
+                return False
         
         elif dataset_name == "gsm8k":
             ds = load_dataset("gsm8k", "main", trust_remote_code=True)
@@ -201,21 +219,22 @@ def download_scan(output_dir: Path):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Try Hugging Face first
-    if download_hf_dataset("scan", output_dir):
-        print("✓ SCAN downloaded from Hugging Face")
-        return True
-    
-    # Fall back to GitHub
+    # Use the pinned official release and canonicalize its publication layout.
     config = DATASET_CONFIGS["scan"]
     archive_path = output_dir / "scan.zip"
     
-    print("Falling back to GitHub download...")
     download_url(config["url"], archive_path, "SCAN")
     extract_archive(archive_path, output_dir)
     archive_path.unlink()  # Remove archive
     
-    print("✓ SCAN downloaded from GitHub")
+    extracted = next(output_dir.glob("SCAN-*/length_split"), None)
+    if extracted is None:
+        raise FileNotFoundError("Pinned SCAN archive did not contain length_split")
+    canonical = output_dir / "length"
+    canonical.mkdir(exist_ok=True)
+    for name in ("tasks_train_length.txt", "tasks_test_length.txt"):
+        shutil.copy2(extracted / name, canonical / name)
+    print("✓ SCAN downloaded and canonicalized from pinned GitHub revision")
     return True
 
 
@@ -228,21 +247,56 @@ def download_cogs(output_dir: Path):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Try Hugging Face first
-    if download_hf_dataset("cogs", output_dir):
-        print("✓ COGS downloaded from Hugging Face")
-        return True
-    
-    # Fall back to GitHub
+    # Use the pinned official repository; its COGS-*/data layout is canonical.
     config = DATASET_CONFIGS["cogs"]
     archive_path = output_dir / "cogs.zip"
     
-    print("Falling back to GitHub download...")
     download_url(config["url"], archive_path, "COGS")
     extract_archive(archive_path, output_dir)
     archive_path.unlink()
     
-    print("✓ COGS downloaded from GitHub")
+    extracted = next(output_dir.glob("COGS-*/data"), None)
+    if extracted is None:
+        raise FileNotFoundError("Pinned COGS archive did not contain data/")
+    canonical = output_dir / "COGS-main" / "data"
+    canonical.mkdir(parents=True, exist_ok=True)
+    for name in ("train.tsv", "dev.tsv", "test.tsv", "gen.tsv"):
+        shutil.copy2(extracted / name, canonical / name)
+    print("✓ COGS downloaded and canonicalized from pinned GitHub revision")
+    return True
+
+
+def download_slog(output_dir: Path):
+    """Download the official SLOG COGS-LF data and protected gen split."""
+    print("\n" + "=" * 60)
+    print("Downloading SLOG Dataset")
+    print("=" * 60)
+
+    output_dir = Path(output_dir)
+    cogs_dir = output_dir / "cogs_LF"
+    cogs_dir.mkdir(parents=True, exist_ok=True)
+    base_url = DATASET_CONFIGS["slog"]["url"]
+    for split in ("train", "dev", "test"):
+        download_url(
+            f"{base_url}cogs_LF/{split}.tsv",
+            cogs_dir / f"{split}.tsv",
+            f"SLOG {split}",
+        )
+
+    archive_path = output_dir / "generalization_sets.zip"
+    download_url(
+        f"{base_url}generalization_sets.zip",
+        archive_path,
+        "SLOG generalization",
+    )
+    with zipfile.ZipFile(archive_path, "r") as archive:
+        archive.extractall(output_dir, pwd=b"SLOG")
+    archive_path.unlink()
+
+    for relative_path in DATASET_CONFIGS["slog"]["expected_files"]:
+        if not (output_dir / relative_path).is_file():
+            raise FileNotFoundError(f"SLOG download is missing {relative_path}")
+    print("✓ SLOG downloaded from the official release")
     return True
 
 
@@ -514,7 +568,36 @@ def download_dataset(dataset: str, output_dir: Path) -> bool:
         print(f"Available: {list(DOWNLOAD_FUNCTIONS.keys())}")
         return False
     
-    return DOWNLOAD_FUNCTIONS[dataset](output_dir)
+    success = DOWNLOAD_FUNCTIONS[dataset](output_dir)
+    if not success:
+        return False
+    errors = validate_canonical_layout(dataset, output_dir)
+    if errors:
+        for error in errors:
+            print(f"Canonical-layout error: {error}")
+        return False
+    manifest = {
+        "dataset": dataset,
+        "source_revision": DATASET_CONFIGS[dataset].get("revision", DATASET_CONFIGS[dataset].get("version")),
+        "files": {},
+    }
+    for path in sorted(output_dir.rglob("*")):
+        if path.is_file() and path.name != "SHA256_MANIFEST.json":
+            manifest["files"][str(path.relative_to(output_dir))] = hashlib.sha256(path.read_bytes()).hexdigest()
+    (output_dir / "SHA256_MANIFEST.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    return True
+
+
+def validate_canonical_layout(dataset: str, output_dir: Path) -> list[str]:
+    """Return missing canonical publication paths after download/canonicalization."""
+    required = {
+        "scan": ["length/tasks_train_length.txt", "length/tasks_test_length.txt"],
+        "cogs": [f"COGS-main/data/{name}.tsv" for name in ("train", "dev", "test", "gen")],
+        "slog": ["cogs_LF/train.tsv", "cogs_LF/dev.tsv", "cogs_LF/test.tsv", "generalization_sets/gen_cogsLF.tsv"],
+        "cfq": ["mcd1/dataset_dict.json", "mcd2/dataset_dict.json", "mcd3/dataset_dict.json"],
+        "gsm8k": ["main/dataset_dict.json"],
+    }
+    return [relative for relative in required.get(dataset, []) if not (output_dir / relative).is_file()]
 
 
 def download_all(output_dir: Path) -> Dict[str, bool]:

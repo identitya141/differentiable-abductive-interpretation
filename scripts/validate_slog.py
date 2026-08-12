@@ -12,7 +12,7 @@ from src.data.cogs_composition import extract_cogs_composition_specs
 from src.data.slog_dataset import SLOG_CATEGORIES, infer_slog_depth
 
 
-def validate_slog_corpus(data_dir: Path) -> Dict:
+def validate_slog_corpus(data_dir: Path, minimum_coverage: float = 0.5) -> Dict:
     path = data_dir / "generalization_sets" / "gen_cogsLF.tsv"
     if not path.is_file():
         raise FileNotFoundError(f"Missing SLOG generalization set: {path}")
@@ -23,6 +23,8 @@ def validate_slog_corpus(data_dir: Path) -> Dict:
     errors = []
     annotated_examples = 0
     composition_count = 0
+    category_annotated = Counter()
+    category_relations = Counter()
     with path.open(encoding="utf-8", newline="") as handle:
         for line_number, row in enumerate(csv.reader(handle, delimiter="\t"), 1):
             if len(row) != 3:
@@ -48,7 +50,9 @@ def validate_slog_corpus(data_dir: Path) -> Dict:
                 continue
             if specs:
                 annotated_examples += 1
+                category_annotated[category] += 1
             composition_count += len(specs)
+            category_relations[category] += len(specs)
             operator_counts.update(spec.operator for spec in specs)
 
     for category in SLOG_CATEGORIES:
@@ -72,8 +76,22 @@ def validate_slog_corpus(data_dir: Path) -> Dict:
         ),
         "composition_count": composition_count,
         "operator_counts": dict(sorted(operator_counts.items())),
+        "coverage_by_category": {
+            category: {
+                "examples": count,
+                "annotated_examples": category_annotated[category],
+                "annotation_coverage": category_annotated[category] / count,
+                "mean_relations_per_example": category_relations[category] / count,
+            }
+            for category, count in sorted(category_counts.items())
+        },
         "errors": errors,
-        "passed": not errors and set(category_counts) == set(SLOG_CATEGORIES),
+        "minimum_annotation_coverage": minimum_coverage,
+        "passed": (
+            not errors and set(category_counts) == set(SLOG_CATEGORIES)
+            and composition_count > 0
+            and annotated_examples / max(1, sum(category_counts.values())) >= minimum_coverage
+        ),
     }
     return report
 
@@ -82,9 +100,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--minimum-coverage", type=float, default=0.5)
     args = parser.parse_args()
 
-    report = validate_slog_corpus(args.data_dir)
+    report = validate_slog_corpus(args.data_dir, args.minimum_coverage)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     if not report["passed"]:

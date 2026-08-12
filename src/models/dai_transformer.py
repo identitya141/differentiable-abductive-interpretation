@@ -37,7 +37,7 @@ class DAIConfig:
     base_model_name: str = "t5-small"
     
     # Abstraction settings
-    domain_type: str = "type_monotonicity"  # Primary abstract domain
+    domain_type: str = "type"  # Frozen primary abstract domain
     constrained_layers: List[int] = None  # Which encoder layers to constrain
     
     # Domain-specific settings
@@ -48,7 +48,7 @@ class DAIConfig:
     # Abstraction application
     apply_projection: bool = False  # Project hidden states at train time
     projection_strength: float = 0.1
-    cross_layer_consistency: bool = True
+    cross_layer_consistency: bool = False
     consistency_weight: float = 0.1
     composition_rules_trainable: bool = True
     operator_specific_composition: bool = True
@@ -776,7 +776,7 @@ class DAITransformerForSequenceClassification(nn.Module):
 def create_dai_model(
     task_type: str = "seq2seq",
     base_model: str = "t5-small",
-    domain_type: str = "type_monotonicity",
+    domain_type: str = "type",
     constrained_layers: Optional[List[int]] = None,
     num_labels: Optional[int] = None,
     **kwargs

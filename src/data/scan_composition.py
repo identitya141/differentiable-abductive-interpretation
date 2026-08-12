@@ -161,7 +161,7 @@ def transform_composition_specs(
         raise ValueError("corruption_probability must be between 0 and 1")
     if not specs:
         return tuple(specs)
-    if mode not in {"shuffled", "random"}:
+    if mode not in {"shuffled", "random", "topology"}:
         if mode != "grounded":
             raise ValueError(f"Unknown composition structure mode: {mode}")
 
@@ -199,8 +199,22 @@ def transform_composition_specs(
             )
             for spec, operator in zip(specs, operators)
         )
-    else:
+    elif mode == "random":
         transformed = tuple(random_spec(spec) for spec in specs)
+    else:
+        child_pairs = [(spec.left_span, spec.right_span) for spec in specs]
+        if len(child_pairs) > 1:
+            offset = generator.randrange(1, len(child_pairs))
+            child_pairs = child_pairs[offset:] + child_pairs[:offset]
+        else:
+            child_pairs = [(child_pairs[0][1], child_pairs[0][0])]
+        transformed = tuple(
+            SCANCompositionSpec(
+                left_span=children[0], right_span=children[1],
+                parent_span=spec.parent_span, operator=spec.operator,
+            )
+            for spec, children in zip(specs, child_pairs)
+        )
 
     if corruption_probability == 0.0:
         return transformed

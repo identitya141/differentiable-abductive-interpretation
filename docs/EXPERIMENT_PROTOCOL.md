@@ -29,9 +29,14 @@ The primary method is `scan_full_contrastive`. The six primary controls are:
 1. `scan_random_init_t5`
 2. `scan_reference_t5`
 3. `scan_tree_linearized`
-4. `scan_random_structure`
-5. `scan_shuffled_structure`
+4. `scan_random_structure` (matched-span random-operator corruption)
+5. `scan_shuffled_structure` (matched-span shuffled-operator corruption)
 6. `scan_simple_consistency`
+
+The separately reported secondary experiment
+`scan_topology_corruption_control` changes child-parent assignments while
+preserving relation count, parent spans, child-span marginals, and operator
+frequencies. It is not added post hoc to the six-comparison primary family.
 
 All methods use the ten paired seeds `42`, `123`, `456`, `789`, `1024`,
 `2027`, `4099`, `7919`, `104729`, and `130363`. The expansion from five to

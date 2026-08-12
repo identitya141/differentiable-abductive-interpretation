@@ -165,6 +165,9 @@ class AbstractionLoss(nn.Module):
 
         structural_contrastive_loss = None
         structural_contrastive_count = 0
+        structural_anchor_count = 0
+        structural_anchor_with_negative_count = 0
+        structural_negative_count = 0
         if (
             self.structural_contrastive_weight > 0
             and composition_specs is not None
@@ -173,6 +176,9 @@ class AbstractionLoss(nn.Module):
             (
                 structural_contrastive_loss,
                 structural_contrastive_count,
+                structural_anchor_count,
+                structural_anchor_with_negative_count,
+                structural_negative_count,
             ) = self._compute_structural_contrastive_loss(
                 hidden_states, attention_mask, composition_specs
             )
@@ -224,6 +230,20 @@ class AbstractionLoss(nn.Module):
                 'contrastive_count': hidden_states.new_tensor(float(contrastive_count)),
                 'structural_contrastive': structural_contrastive_loss if structural_contrastive_loss is not None else hidden_states.new_zeros(()),
                 'structural_contrastive_count': hidden_states.new_tensor(float(structural_contrastive_count)),
+                'structural_anchor_count': hidden_states.new_tensor(float(structural_anchor_count)),
+                'structural_anchor_with_negative_count': hidden_states.new_tensor(float(structural_anchor_with_negative_count)),
+                'structural_negative_count': hidden_states.new_tensor(float(structural_negative_count)),
+                'structural_zero_negative_fraction': hidden_states.new_tensor(
+                    1.0 - structural_anchor_with_negative_count / structural_anchor_count
+                    if structural_anchor_count else 0.0
+                ),
+                'structural_mean_negative_count': hidden_states.new_tensor(
+                    structural_negative_count / structural_anchor_with_negative_count
+                    if structural_anchor_with_negative_count else 0.0
+                ),
+                'structural_operator_diversity': hidden_states.new_tensor(float(len(set(
+                    spec.operator for example_specs in (composition_specs or []) for spec in example_specs
+                )))),
                 'consistency': consistency_loss if consistency_loss is not None else torch.tensor(0.0),
             }
         )
@@ -233,7 +253,7 @@ class AbstractionLoss(nn.Module):
         hidden_states: torch.Tensor,
         attention_mask: Optional[torch.Tensor],
         composition_specs: List[List[Any]],
-    ) -> Tuple[torch.Tensor, int]:
+    ) -> Tuple[torch.Tensor, int, int, int, int]:
         """Match composed children to their parent against in-batch parents."""
         composed_features = []
         parent_features = []
@@ -281,7 +301,7 @@ class AbstractionLoss(nn.Module):
                 operators.append(spec.operator)
 
         if len(composed_features) < 2:
-            return hidden_states.new_zeros(()), 0
+            return hidden_states.new_zeros(()), 0, len(composed_features), 0, 0
 
         composed_tensor = F.normalize(torch.cat(composed_features, dim=0), dim=-1)
         parent_tensor = F.normalize(torch.cat(parent_features, dim=0), dim=-1)
@@ -297,8 +317,21 @@ class AbstractionLoss(nn.Module):
             dtype=torch.bool,
         )
         same_operator.fill_diagonal_(False)
+        valid_negative_mask = ~same_operator
+        valid_negative_mask.fill_diagonal_(False)
+        negative_counts = valid_negative_mask.sum(dim=1)
+        valid_anchors = negative_counts > 0
+        if not valid_anchors.any():
+            return hidden_states.new_zeros(()), 0, logits.size(0), 0, 0
         logits = logits.masked_fill(same_operator, float("-inf"))
-        return F.cross_entropy(logits, targets), logits.size(0)
+        anchor_losses = F.cross_entropy(logits, targets, reduction="none")
+        return (
+            anchor_losses[valid_anchors].mean(),
+            int(valid_anchors.sum().item()),
+            logits.size(0),
+            int(valid_anchors.sum().item()),
+            int(negative_counts[valid_anchors].sum().item()),
+        )
 
     def _compute_contrastive_loss(
         self,
@@ -441,8 +474,11 @@ class AbstractionLoss(nn.Module):
                 torch.stack(example_losses),
                 hidden_states.new_tensor(example_counts),
             )
+        nonempty_example_losses = [
+            loss for loss, count in zip(example_losses, example_counts) if count > 0
+        ]
         return (
-            total_loss / valid_count,
+            torch.stack(nonempty_example_losses).mean(),
             valid_count,
             torch.stack(example_losses),
             hidden_states.new_tensor(example_counts),

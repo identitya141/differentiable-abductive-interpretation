@@ -348,6 +348,26 @@ class GroundedCompositionLossTests(unittest.TestCase):
         self.assertGreater(hidden_states.grad.norm().item(), 0.0)
         self.assertIsNotNone(domain.operator_composition_rules["and"].grad)
 
+    def test_same_operator_batch_reports_zero_useful_structural_negatives(self):
+        domain = TypeDomain(hidden_dim=8, num_types=4, type_embed_dim=4)
+        loss_fn = AbstractionLoss(
+            abstract_domain=domain, concretization_weight=0.0,
+            composition_weight=0.0, entropy_regularization=0.0,
+            structural_contrastive_weight=1.0,
+        )
+        specs = [
+            [SCANCompositionSpec((0, 1), (1, 2), (0, 2), "and")]
+            for _ in range(3)
+        ]
+        output = loss_fn(
+            hidden_states=torch.randn(3, 4, 8),
+            attention_mask=torch.ones(3, 4), composition_specs=specs,
+        )
+        self.assertEqual(output.loss_components["structural_anchor_count"].item(), 3.0)
+        self.assertEqual(output.loss_components["structural_anchor_with_negative_count"].item(), 0.0)
+        self.assertEqual(output.loss_components["structural_zero_negative_fraction"].item(), 1.0)
+        self.assertEqual(output.loss_components["structural_contrastive"].item(), 0.0)
+
 
 class GroundedCompositionActivationTests(unittest.TestCase):
     def test_eval_diagnostics_refresh_without_adding_abstraction_loss(self):

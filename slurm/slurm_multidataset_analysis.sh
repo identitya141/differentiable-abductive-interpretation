@@ -39,7 +39,8 @@ if [[ ${#METHODS[@]} -ne 12 || ${#GROUPS[@]} -ne 6 ]]; then
     exit 2
 fi
 
-COMPARISON_REPORTS=()
+PRIMARY_CONTROLS=(random_init_t5 reference_t5 tree_linearized_t5 random_structure shuffled_structure simple_consistency)
+PRIMARY_REPORTS=()
 for GROUP in "${GROUPS[@]}"; do
     EXPERIMENT_DIR="$EXPERIMENT_ROOT/$GROUP"
     REPORT_DIR="$REPORT_ROOT/$GROUP"
@@ -65,7 +66,13 @@ for GROUP in "${GROUPS[@]}"; do
             --method-a "${PROPOSED_FILES[@]}" \
             --method-b "${CONTROL_FILES[@]}" \
             --output "$COMPARISON"
-        COMPARISON_REPORTS+=("$COMPARISON")
+        if [[ "$GROUP" == "scan/length" ]]; then
+            for PRIMARY_CONTROL in "${PRIMARY_CONTROLS[@]}"; do
+                if [[ "$CONTROL" == "$PRIMARY_CONTROL" ]]; then
+                    PRIMARY_REPORTS+=("$COMPARISON")
+                fi
+            done
+        fi
     done
     python scripts/analyze_composition_violations.py \
         --predictions "${PROPOSED_FILES[@]}" \
@@ -73,5 +80,17 @@ for GROUP in "${GROUPS[@]}"; do
 done
 
 python scripts/summarize_comparisons.py \
-    --reports "${COMPARISON_REPORTS[@]}" \
-    --output "$REPORT_ROOT/all_datasets_holm.json"
+    --reports "${PRIMARY_REPORTS[@]}" \
+    --expected-dataset scan \
+    --expected-split length \
+    --expected-family-size 6 \
+    --output "$REPORT_ROOT/primary_scan_length_holm_m6.json"
+
+# Secondary families are corrected separately within each benchmark setting.
+for GROUP in "${GROUPS[@]}"; do
+    REPORTS=("$REPORT_ROOT/$GROUP/${PROPOSED_METHOD}_vs_"*.json)
+    python scripts/summarize_comparisons.py \
+        --reports "${REPORTS[@]}" \
+        --expected-family-size 11 \
+        --output "$REPORT_ROOT/$GROUP/secondary_holm_m11.json"
+done

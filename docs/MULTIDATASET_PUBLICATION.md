@@ -10,10 +10,16 @@ proposed full structural-contrastive DAI method on:
 - SLOG structural generalization
 - CFQ MCD1, MCD2, and MCD3
 
+The pinned tokenizer preflight measured maximum target lengths of 49 (SCAN),
+743 (COGS), 972 (SLOG), and 531 (CFQ). The frozen target ceilings are therefore
+128, 1024, 1024, and 640 respectively; truncation is forbidden.
+
 This expands to 720 independently retryable array tasks (72 method/benchmark
 configurations times ten seeds) and 720 paired-seed training
 runs. Baseline rows dispatch to `scripts/train_baseline.py`; structural DAI
 controls and the proposed method dispatch to `scripts/train.py`.
+Each array element owns exactly one dataset/method/seed run, so a slow method
+cannot exhaust one allocation while looping over multiple seeds.
 
 ## Supervision Boundary
 
@@ -71,3 +77,9 @@ Analysis artifacts are isolated by source snapshot at:
 /scratch/$USER/dai-research/results/publication_multidataset/
   <source-snapshot-id>/analysis_<job-id>/<dataset>/<split>/
 ```
+
+The preregistered primary output is
+`primary_scan_length_holm_m6.json`, which asserts SCAN/length and exactly six
+controls before applying Holm correction. Each benchmark also receives its own
+11-control exploratory `secondary_holm_m11.json`; cross-benchmark p-values are
+never pooled into the primary family.

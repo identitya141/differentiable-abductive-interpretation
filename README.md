@@ -52,6 +52,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
 python scripts/download_data.py --all --output data
+# copy_to_sapelo.sh invokes the all-dataset canonical staging + SHA-256 step
+bash slurm/copy_to_sapelo.sh sapelo2
 
 # Result-independent validation and release inventory
 sbatch slurm/slurm_test_suite.sh
@@ -69,6 +71,9 @@ tests, corpus validators, required raw artifacts, and gate ordering.
 ```bash
 sbatch slurm/submit_multidataset_pipeline.sh
 ```
+
+Publication runners are offline-only for data: a missing canonical staged file
+is a hard error, never an implicit Hugging Face download.
 
 ## Results Status
 
@@ -99,7 +104,6 @@ for the current evidence status.
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
 
 
 

@@ -67,6 +67,7 @@ echo "Installing pinned non-PyTorch dependencies..."
 grep -Ev '^(torch|torchvision|torchaudio)==' \
     "$PROJECT_DIR/requirements.txt" > "$SCRATCH_DIR/requirements-sapelo.txt"
 pip install -r "$SCRATCH_DIR/requirements-sapelo.txt"
+pip install -r "$PROJECT_DIR/requirements-test.txt"
 
 # Install project in editable mode
 if [ -f "$PROJECT_DIR/setup.py" ] || [ -f "$PROJECT_DIR/pyproject.toml" ]; then

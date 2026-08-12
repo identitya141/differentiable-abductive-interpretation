@@ -427,10 +427,12 @@ class IntervalDomain(AbstractDomain):
         self,
         hidden_dim: int,
         interval_dim: int = 32,  # Reduced dimensionality for interval tracking
+        precision_weight: float = 0.01,
         **kwargs
     ):
         super().__init__(hidden_dim, **kwargs)
         self.interval_dim = interval_dim
+        self.precision_weight = precision_weight
         
         # Project to interval space
         self.projection = nn.Linear(hidden_dim, interval_dim)
@@ -476,7 +478,11 @@ class IntervalDomain(AbstractDomain):
         upper_violation = F.relu(projected - a.upper)
         
         # Total violation
-        violation = lower_violation + upper_violation
+        # Prevent the trivial solution of expanding intervals indefinitely.
+        violation = (
+            lower_violation + upper_violation
+            + self.precision_weight * (a.upper - a.lower)
+        )
         
         violation = violation.mean(dim=-1)
         if attention_mask is not None:

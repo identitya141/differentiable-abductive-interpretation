@@ -129,6 +129,14 @@ class BaseCompositionalDataset(Dataset, ABC):
         
         for example in self.examples:
             composition_structure = self._get_compositional_structure(example)
+            source_ids = self.tokenizer.encode(
+                example.input_text, add_special_tokens=True
+            )
+            if len(source_ids) > self.max_source_length:
+                raise ValueError(
+                    f"Source requires {len(source_ids)} tokens but the benchmark "
+                    f"contract permits {self.max_source_length}; refusing truncation"
+                )
             target_ids = self.tokenizer.encode(
                 example.target_text, add_special_tokens=True
             )
@@ -142,7 +150,7 @@ class BaseCompositionalDataset(Dataset, ABC):
                 example.input_text,
                 max_length=self.max_source_length,
                 padding="max_length",
-                truncation=True,
+                truncation=False,
                 return_tensors="pt",
             )
             
@@ -151,7 +159,7 @@ class BaseCompositionalDataset(Dataset, ABC):
                 text_target=example.target_text,
                 max_length=self.max_target_length,
                 padding="max_length",
-                truncation=True,
+                truncation=False,
                 return_tensors="pt",
             )
             

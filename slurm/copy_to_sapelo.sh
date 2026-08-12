@@ -47,14 +47,8 @@ rsync -avz --progress \
     --exclude='/data/' \
     "$LOCAL_DIR/" "$SAPELO_HOST:$REMOTE_DIR/"
 
-# The publication matrix uses the local SCAN grammar files. Stage only this
-# compact corpus to scratch; larger datasets remain excluded from project sync.
-REMOTE_USER=$(ssh "$SAPELO_HOST" 'id -un')
-REMOTE_SCAN_DIR="/scratch/$REMOTE_USER/dai-research/data/scan"
-echo "Staging SCAN data to $REMOTE_SCAN_DIR..."
-ssh "$SAPELO_HOST" "mkdir -p '$REMOTE_SCAN_DIR'"
-rsync -avz --progress \
-    "$LOCAL_DIR/data/scan/" "$SAPELO_HOST:$REMOTE_SCAN_DIR/"
+echo "Staging all canonical publication datasets..."
+bash slurm/stage_publication_data.sh "$SAPELO_HOST"
 
 # Make scripts executable
 echo ""

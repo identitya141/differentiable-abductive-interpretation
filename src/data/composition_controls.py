@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 import random
-from typing import Any, Sequence, Tuple
+from typing import Any, Mapping, Sequence, Tuple
+
+
+DATASET_OPERATOR_VOCABULARIES: Mapping[str, Tuple[str, ...]] = {
+    "scan": ("direction", "opposite", "around", "twice", "thrice", "and", "after"),
+    "cogs": ("agent", "theme", "recipient", "ccomp", "xcomp", "nmod"),
+    "slog": ("agent", "theme", "recipient", "ccomp", "xcomp", "nmod"),
+    "cfq": ("relation", "join"),
+}
 
 
 def transform_aligned_specs(
@@ -12,6 +20,7 @@ def transform_aligned_specs(
     token_count: int,
     mode: str,
     seed: str,
+    dataset: str | None = None,
 ) -> Tuple[Any, ...]:
     if mode not in {"grounded", "random", "shuffled"}:
         raise ValueError(f"Unknown composition structure mode: {mode}")
@@ -24,10 +33,18 @@ def transform_aligned_specs(
             if not 0 <= span[0] < span[1] <= token_count:
                 raise ValueError("Composition span is outside the tokenized input")
 
-    operator_pool = sorted({spec.operator for spec in specs} | {
-        "direction", "opposite", "around", "twice", "thrice", "and", "after",
-        "agent", "theme", "recipient", "ccomp", "xcomp", "nmod", "relation", "join",
-    })
+    if dataset is None:
+        operator_pool = sorted({spec.operator for spec in specs})
+    else:
+        key = dataset.lower().split("_", 1)[0]
+        if key not in DATASET_OPERATOR_VOCABULARIES:
+            raise ValueError(f"No operator vocabulary registered for dataset {dataset!r}")
+        operator_pool = list(DATASET_OPERATOR_VOCABULARIES[key])
+        unknown = sorted({spec.operator for spec in specs} - set(operator_pool))
+        if unknown:
+            raise ValueError(f"Operators {unknown} are outside the {key} vocabulary")
+    if len(operator_pool) < 2:
+        raise ValueError("A corruption control requires at least two operators")
 
     def different_operator(current: str) -> str:
         choices = [operator for operator in operator_pool if operator != current]

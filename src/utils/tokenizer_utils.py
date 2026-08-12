@@ -12,7 +12,12 @@ special tokens get stripped when decode(skip_special_tokens=True), which
 breaks metrics by producing empty strings.
 """
 
+from contextlib import contextmanager
 from typing import List, Optional, Tuple
+import random
+
+import numpy as np
+import torch
 from transformers import PreTrainedTokenizer, T5Tokenizer
 
 
@@ -113,6 +118,53 @@ def extend_tokenizer_for_dataset(
         print(f"New vocabulary size: {len(tokenizer)}")
     
     return tokenizer, num_added
+
+
+@contextmanager
+def _preserve_rng_state():
+    """Preserve every RNG touched by model embedding initialization."""
+    python_state = random.getstate()
+    numpy_state = np.random.get_state()
+    torch_state = torch.random.get_rng_state()
+    cuda_states = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
+    try:
+        yield
+    finally:
+        random.setstate(python_state)
+        np.random.set_state(numpy_state)
+        torch.random.set_rng_state(torch_state)
+        if cuda_states is not None:
+            torch.cuda.set_rng_state_all(cuda_states)
+
+
+def resize_with_deterministic_added_token_init(
+    model,
+    new_num_tokens: int,
+    *,
+    seed: int,
+):
+    """Resize embeddings using a dedicated paired seed, then restore RNG state.
+
+    This makes newly added dataset-token rows identical for paired DAI and T5
+    runs even when DAI constructed auxiliary modules before the resize.
+    """
+    get_embeddings = getattr(model, "get_input_embeddings", None)
+    if get_embeddings is None and hasattr(model, "t5"):
+        get_embeddings = model.t5.get_input_embeddings
+    if get_embeddings is None and hasattr(model, "_hf_model"):
+        get_embeddings = model._hf_model.get_input_embeddings
+    if get_embeddings is None:
+        raise TypeError("Model does not expose input embeddings")
+    old_num_tokens = int(get_embeddings().weight.shape[0])
+    if new_num_tokens <= old_num_tokens:
+        return model.resize_token_embeddings(new_num_tokens)
+    with _preserve_rng_state():
+        random.seed(seed)
+        np.random.seed(seed % (2**32))
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+        return model.resize_token_embeddings(new_num_tokens)
 
 
 def verify_tokenization(

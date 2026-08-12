@@ -20,14 +20,14 @@ class ModelConfig:
     base_model: str = "t5-small"
     architecture: str = "dai"
     pretrained: bool = True
-    domain_type: str = "type_monotonicity"
+    domain_type: str = "type"
     constrained_layers: List[int] = field(default_factory=lambda: [2, 4])
     num_types: int = 16
     type_embed_dim: int = 64
     monotonicity_dim: int = 64
     apply_projection: bool = False
     projection_strength: float = 0.1
-    cross_layer_consistency: bool = True
+    cross_layer_consistency: bool = False
     consistency_weight: float = 0.1
     composition_rules_trainable: bool = True
     operator_specific_composition: bool = True
@@ -284,7 +284,12 @@ DATASET_CONFIGS = {
     'cogs': DataConfig(
         dataset='cogs',
         max_source_length=128,
-        max_target_length=256,
+        max_target_length=1024,
+    ),
+    'slog': DataConfig(
+        dataset='slog',
+        max_source_length=256,
+        max_target_length=1024,
     ),
     'slog': DataConfig(
         dataset='slog',
@@ -295,7 +300,7 @@ DATASET_CONFIGS = {
         dataset='cfq',
         dataset_split='mcd1',
         max_source_length=128,
-        max_target_length=256,
+        max_target_length=640,
     ),
     'clutrr': DataConfig(
         dataset='clutrr',

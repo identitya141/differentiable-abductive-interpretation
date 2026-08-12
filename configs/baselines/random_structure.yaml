@@ -1,4 +1,4 @@
-baseline_type: random_structure
+baseline_type: random_structure  # Historical key; this is a random-operator control.
 name: Random-structure T5
 composition_structure_mode: random
 model:

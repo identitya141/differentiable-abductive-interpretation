@@ -38,7 +38,10 @@ from src.evaluation.metrics import evaluate_model, CompositionalMetrics, normali
 from src.evaluation.compositional_metrics import CompositionParser
 from src.utils.config import load_config, parse_override, ExperimentConfig
 from src.utils.reproducibility import set_seed, get_reproducibility_info, ReproducibilityManager
-from src.utils.tokenizer_utils import extend_tokenizer_for_dataset
+from src.utils.tokenizer_utils import (
+    extend_tokenizer_for_dataset,
+    resize_with_deterministic_added_token_init,
+)
 from src.utils.benchmark_contract import apply_benchmark_contract
 
 # Dataset imports
@@ -341,7 +344,9 @@ def train(
     
     # Resize token embeddings to match extended tokenizer vocabulary
     # This is critical when special tokens (e.g., SCAN actions) are added
-    model.resize_token_embeddings(len(tokenizer))
+    resize_with_deterministic_added_token_init(
+        model, len(tokenizer), seed=config.data.split_seed
+    )
     logger.info(f"Model embeddings resized to {len(tokenizer)} tokens")
     
     # Count parameters

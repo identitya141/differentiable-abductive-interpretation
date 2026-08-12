@@ -21,7 +21,8 @@ import torch
 import numpy as np
 import torch.nn as nn
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
+from torch.optim.lr_scheduler import LinearLR
+from transformers.optimization import get_cosine_schedule_with_warmup
 from torch.utils.data import DataLoader
 from torch.amp import autocast
 from torch.cuda.amp import GradScaler
@@ -347,19 +348,10 @@ class DAITrainer:
             warmup_steps = int(self.total_steps * self.config.warmup_ratio)
         
         if self.config.lr_scheduler == "cosine_with_warmup":
-            warmup_scheduler = LinearLR(
+            return get_cosine_schedule_with_warmup(
                 self.optimizer,
-                start_factor=0.1,
-                total_iters=warmup_steps,
-            )
-            main_scheduler = CosineAnnealingLR(
-                self.optimizer,
-                T_max=self.total_steps - warmup_steps,
-            )
-            return SequentialLR(
-                self.optimizer,
-                schedulers=[warmup_scheduler, main_scheduler],
-                milestones=[warmup_steps],
+                num_warmup_steps=warmup_steps,
+                num_training_steps=self.total_steps,
             )
         elif self.config.lr_scheduler == "linear":
             return LinearLR(

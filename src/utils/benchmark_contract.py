@@ -28,9 +28,11 @@ class BenchmarkContract:
 
 _LENGTHS = {
     "scan": (64, 128),
-    "cogs": (128, 256),
-    "slog": (256, 512),
-    "cfq": (128, 256),
+    # Measured with the pinned dataset-atomic T5 tokenizer. Maxima are
+    # COGS=743, SLOG=972, CFQ=531 target tokens; ceilings include headroom.
+    "cogs": (128, 1024),
+    "slog": (256, 1024),
+    "cfq": (128, 640),
 }
 
 _DEFAULT_SPLITS = {

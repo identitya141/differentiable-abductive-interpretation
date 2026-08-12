@@ -93,7 +93,7 @@ class COGSDataset(BaseCompositionalDataset):
         tokenizer,
         split: str = "train",
         max_source_length: int = 128,
-        max_target_length: int = 256,
+        max_target_length: int = 1024,
         data_dir: Optional[str] = None,
         cache_dir: Optional[str] = None,
         composition_structure_mode: str = "grounded",
@@ -216,6 +216,7 @@ class COGSDataset(BaseCompositionalDataset):
                     token_count=int(encoded["attention_mask"].sum().item()),
                     mode=self.composition_structure_mode,
                     seed=f"{self.seed}:{example.input_text}",
+                    dataset="cogs",
                 )
             )
         return tokenized
@@ -264,7 +265,7 @@ class COGSDataModule:
         tokenizer,
         batch_size: int = 32,
         max_source_length: int = 128,
-        max_target_length: int = 256,
+        max_target_length: int = 1024,
         num_workers: int = 4,
         eval_batch_size: Optional[int] = None,
         eval_num_workers: int = 0,
