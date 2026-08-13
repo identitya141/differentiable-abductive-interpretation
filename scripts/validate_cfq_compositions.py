@@ -64,11 +64,18 @@ def validate_cfq_corpus(data_dir: Path, minimum_coverage: float = 0.1) -> Dict:
     )
     report["operator_counts"] = dict(sorted(report["operator_counts"].items()))
     report["minimum_annotation_coverage"] = minimum_coverage
+    report["splits_below_minimum_coverage"] = sorted(
+        f"{mcd}/{split}"
+        for mcd, splits in report["mcd_splits"].items()
+        for split, values in splits.items()
+        if values["annotation_coverage"] < minimum_coverage
+    )
     report["passed"] = (
         bool(report["mcd_splits"])
         and not report["errors"]
         and report["composition_count"] > 0
         and report["annotation_coverage"] >= minimum_coverage
+        and not report["splits_below_minimum_coverage"]
     )
     return report
 

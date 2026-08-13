@@ -28,24 +28,29 @@ if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "$SAPELO_HOST" exit 2>/dev/null; t
     echo ""
 fi
 
-# Create remote directory
-echo "Creating remote directory..."
-ssh "$SAPELO_HOST" "mkdir -p $REMOTE_DIR"
+SOURCE_REVISION=$(git -C "$LOCAL_DIR" rev-parse HEAD)
+SOURCE_REMOTE=$(git -C "$LOCAL_DIR" remote get-url origin)
+if [[ -n "$(git -C "$LOCAL_DIR" status --porcelain --untracked-files=no)" ]]; then
+    echo "ERROR: Commit tracked changes before deployment; Sapelo runs use an immutable Git revision." >&2
+    exit 2
+fi
 
-# Copy files using rsync (more efficient than scp)
-echo "Copying files (this may take a while)..."
-rsync -avz --progress \
-    --exclude-from='.slurmignore' \
-    --exclude='/venv/' \
-    --exclude='/.venv/' \
-    --exclude='__pycache__/' \
-    --exclude='/.git/' \
-    --exclude='*.pyc' \
-    --exclude='/checkpoints/' \
-    --exclude='/logs/' \
-    --exclude='/results/' \
-    --exclude='/data/' \
-    "$LOCAL_DIR/" "$SAPELO_HOST:$REMOTE_DIR/"
+echo "Cloning/updating the versioned source tree at $SOURCE_REVISION..."
+ssh "$SAPELO_HOST" bash -s -- "$REMOTE_DIR" "$SOURCE_REMOTE" "$SOURCE_REVISION" <<'REMOTE'
+set -euo pipefail
+remote_dir=$1
+source_remote=$2
+source_revision=$3
+if [[ ! -d "$remote_dir/.git" ]]; then
+    if [[ -e "$remote_dir" && -n "$(find "$remote_dir" -mindepth 1 -print -quit)" ]]; then
+        echo "ERROR: $remote_dir exists but is not a Git clone; move it aside first." >&2
+        exit 2
+    fi
+    git clone "$source_remote" "$remote_dir"
+fi
+git -C "$remote_dir" fetch origin
+git -C "$remote_dir" checkout --detach "$source_revision"
+REMOTE
 
 echo "Staging all canonical publication datasets..."
 bash slurm/stage_publication_data.sh "$SAPELO_HOST"
@@ -57,7 +62,7 @@ ssh "$SAPELO_HOST" "cd $REMOTE_DIR && chmod +x slurm/*.sh scripts/*.py"
 
 echo ""
 echo "=================================================="
-echo "Copy complete!"
+echo "Versioned deployment complete!"
 echo "=================================================="
 echo ""
 echo "Next steps:"

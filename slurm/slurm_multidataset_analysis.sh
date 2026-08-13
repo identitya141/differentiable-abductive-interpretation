@@ -46,6 +46,7 @@ for GROUP in "${GROUPS[@]}"; do
     REPORT_DIR="$REPORT_ROOT/$GROUP"
     mkdir -p "$REPORT_DIR"
     python scripts/validate_publication_artifacts.py \
+        --require-provenance \
         --experiment-dir "$EXPERIMENT_DIR" \
         --methods "${METHODS[@]}" \
         --seeds "${SEEDS[@]}" \

@@ -61,6 +61,19 @@ def validate_slog_corpus(data_dir: Path, minimum_coverage: float = 0.5) -> Dict:
                 f"category {category} has {category_counts[category]} examples, expected 1000"
             )
     unexpected = sorted(set(category_counts) - set(SLOG_CATEGORIES))
+    coverage_by_category = {
+        category: {
+            "examples": count,
+            "annotated_examples": category_annotated[category],
+            "annotation_coverage": category_annotated[category] / count,
+            "mean_relations_per_example": category_relations[category] / count,
+        }
+        for category, count in sorted(category_counts.items())
+    }
+    categories_below_minimum = sorted(
+        category for category, values in coverage_by_category.items()
+        if values["annotation_coverage"] < minimum_coverage
+    )
     report = {
         "dataset": "slog",
         "source": "https://github.com/bingzhilee/SLOG",
@@ -76,21 +89,15 @@ def validate_slog_corpus(data_dir: Path, minimum_coverage: float = 0.5) -> Dict:
         ),
         "composition_count": composition_count,
         "operator_counts": dict(sorted(operator_counts.items())),
-        "coverage_by_category": {
-            category: {
-                "examples": count,
-                "annotated_examples": category_annotated[category],
-                "annotation_coverage": category_annotated[category] / count,
-                "mean_relations_per_example": category_relations[category] / count,
-            }
-            for category, count in sorted(category_counts.items())
-        },
+        "coverage_by_category": coverage_by_category,
+        "categories_below_minimum_coverage": categories_below_minimum,
         "errors": errors,
         "minimum_annotation_coverage": minimum_coverage,
         "passed": (
             not errors and set(category_counts) == set(SLOG_CATEGORIES)
             and composition_count > 0
             and annotated_examples / max(1, sum(category_counts.values())) >= minimum_coverage
+            and not categories_below_minimum
         ),
     }
     return report

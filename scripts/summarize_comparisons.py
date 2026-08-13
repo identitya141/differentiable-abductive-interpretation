@@ -98,17 +98,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-    if expected_family_size is not None and len(reports) != expected_family_size:
-        raise ValueError(
-            f"Expected correction family size {expected_family_size}, got {len(reports)}"
-        )
-    if expected_dataset is not None and any(
-        str(report.get("benchmark", {}).get("dataset")) != expected_dataset
-        for report in reports
-    ):
-        raise ValueError(f"Correction family must contain only dataset={expected_dataset}")
-    if expected_split is not None and any(
-        str(report.get("benchmark", {}).get("split")) != expected_split
-        for report in reports
-    ):
-        raise ValueError(f"Correction family must contain only split={expected_split}")

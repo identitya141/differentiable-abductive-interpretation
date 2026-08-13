@@ -358,6 +358,7 @@ def train(
     # Create training config
     training_config = TrainingConfig(
         experiment_name=config.experiment_name,
+        dataset_type=dataset_type,
         seed=seed,
         num_epochs=config.training.num_epochs,
         max_steps=config.training.max_steps,
@@ -425,11 +426,35 @@ def train(
     results['source_tree_dirty'] = repro_manager.info.get(
         'has_uncommitted_changes'
     )
+    results['source_snapshot_id'] = os.environ.get('SOURCE_SNAPSHOT_ID')
+    results['source_git_revision'] = os.environ.get('SOURCE_GIT_REVISION')
+    results['config_sha256'] = os.environ.get('CONFIG_SHA256')
+    results['data_sha256'] = os.environ.get('DATA_SHA256')
     results['model_parameters'] = {
         'total': total_params,
         'trainable': trainable_params,
     }
     results['benchmark_contract'] = asdict(contract)
+    train_rows = getattr(data_module.train_dataset, "_tokenized_examples", [])
+    train_relation_counts = [
+        len(row.get("composition_specs", [])) for row in train_rows
+    ]
+    annotated_relation_counts = [count for count in train_relation_counts if count]
+    results['structural_supervision'] = {
+        'training_examples': len(train_relation_counts),
+        'annotated_training_examples': len(annotated_relation_counts),
+        'annotated_training_fraction': (
+            len(annotated_relation_counts) / len(train_relation_counts)
+            if train_relation_counts else 0.0
+        ),
+        'mean_relations_per_annotated_example': (
+            sum(annotated_relation_counts) / len(annotated_relation_counts)
+            if annotated_relation_counts else 0.0
+        ),
+        'structurally_supervised_batch_fraction': results.get(
+            'structurally_supervised_batch_fraction', 0.0
+        ),
+    }
 
     # Final metrics must use the validation-selected checkpoint, never the
     # in-memory final epoch.
@@ -486,6 +511,7 @@ def train(
 
     predictions_path = run_output_dir / f"predictions_seed{seed}.jsonl"
     composition_parser = CompositionParser(dataset_type)
+    test_rows = getattr(data_module.test_dataset, "_tokenized_examples", [])
     with predictions_path.open('w', encoding='utf-8') as handle:
         for index, (input_text, prediction, target) in enumerate(zip(
             final_eval.inputs or [],
@@ -517,6 +543,14 @@ def train(
                     final_eval.composition_violations[index]
                     if final_eval.composition_violations is not None
                     else None
+                ),
+                'structural_relation_count': (
+                    len(test_rows[index].get('composition_specs', []))
+                    if index < len(test_rows) else None
+                ),
+                'structurally_annotated': (
+                    bool(test_rows[index].get('composition_specs', []))
+                    if index < len(test_rows) else None
                 ),
             }
             handle.write(json.dumps(artifact, sort_keys=True) + '\n')

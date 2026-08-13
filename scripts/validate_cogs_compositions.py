@@ -112,9 +112,15 @@ def validate_cogs_corpus(data_dir: Path, minimum_coverage: float = 0.5) -> Dict:
         for category, total in sorted(combined_totals.items())
     }
     report["minimum_annotation_coverage"] = minimum_coverage
+    report["categories_below_minimum_coverage"] = sorted(
+        category for category, values in report["coverage_by_category"].items()
+        if category != "primitive"
+        and values["annotation_coverage"] < minimum_coverage
+    )
     report["passed"] = (
         not report["errors"] and report["composition_count"] > 0
         and report["annotation_coverage"] >= minimum_coverage
+        and not report["categories_below_minimum_coverage"]
     )
     return report
 

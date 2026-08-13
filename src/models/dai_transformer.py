@@ -2,7 +2,7 @@
 DAI Transformer: Differentiable Abstract Interpretation Enhanced Transformer
 
 This module implements the main DAI model architecture, which augments a
-standard transformer (T5) with differentiable abstract interpretation constraints.
+standard transformer (T5) with differentiable abstract-domain consistency losses.
 
 Key Design Decisions:
 1. Base Model: T5-small/T5-base (encoder-decoder, well-studied for compositional tasks)
@@ -181,7 +181,7 @@ class DAIEncoderWrapper(nn.Module):
     Wrapper around T5 encoder that applies abstraction constraints.
     
     This wrapper intercepts hidden states after specified layers
-    and applies abstract interpretation constraints.
+    and applies learned abstract-domain consistency measurements.
     """
     
     def __init__(

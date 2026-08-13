@@ -30,11 +30,11 @@ from src.losses.abstraction_loss import AbstractionLoss, CompositionAwareAbstrac
 
 class AbstractionLayer(nn.Module):
     """
-    Neural layer that applies abstract interpretation constraints.
+    Neural layer that measures learned abstract-domain consistency.
     
     This layer is inserted after specified transformer layers and:
     1. Computes abstract representations of hidden states
-    2. Measures abstraction violations (for loss computation)
+    2. Measures empirical consistency violations (for loss computation)
     3. Optionally projects states toward valid abstract regions
     
     Architecture:
@@ -47,7 +47,7 @@ class AbstractionLayer(nn.Module):
                 ▼
            AbstractElement (a)
                 │
-                ├──► concretize_loss(h, a) ──► abstraction_loss
+                ├──► reconstruction consistency(h, a) ──► abstraction_loss
                 │
                 └──► project_to_abstract(h, a) ──► Optional projection
     """
@@ -87,7 +87,7 @@ class AbstractionLayer(nn.Module):
             store_abstractions: Whether to store abstractions for later analysis
             layer_idx: Which transformer layer this is attached to (for logging)
             use_full_abstraction_loss: If True, use AbstractionLoss with composition/consistency/entropy
-            concretization_weight: Weight for concretization loss component
+            concretization_weight: Legacy API name for reconstruction-consistency weight
             composition_weight: Weight for composition loss component
             consistency_weight: Weight for consistency loss component
             entropy_regularization: Weight for entropy regularization
@@ -218,7 +218,7 @@ class AbstractionLayer(nn.Module):
                 outputs['abstraction_loss'] = loss
                 outputs['abstraction_loss_components'] = loss_output.loss_components
             else:
-                # Fallback: just concretize_loss (original behavior)
+                # Fallback: reconstruction consistency only (legacy API name)
                 loss = self.abstract_domain.concretize_loss(hidden_states, abstraction)
                 self._cached_loss = loss
                 self._cached_loss_components = {'concretization': loss}

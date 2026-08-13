@@ -61,6 +61,22 @@ def analyze_rows(rows: Iterable[Dict]) -> Dict:
     incorrect_values = [
         value for value, is_correct in zip(violations, correctness) if not is_correct
     ]
+    annotation_groups = {}
+    for label, expected in (("annotated", True), ("unannotated", False)):
+        grouped = [
+            row for row in rows if row.get("structurally_annotated") is expected
+        ]
+        annotation_groups[label] = {
+            "count": len(grouped),
+            "exact_match": (
+                sum(bool(row.get("correct")) for row in grouped) / len(grouped)
+                if grouped else None
+            ),
+            "mean_relation_count": (
+                mean(float(row.get("structural_relation_count", 0)) for row in grouped)
+                if grouped else None
+            ),
+        }
     return {
         "analysis_class": "exploratory",
         "total_examples": len(rows),
@@ -78,6 +94,7 @@ def analyze_rows(rows: Iterable[Dict]) -> Dict:
         "point_biserial_correlation_with_correctness": _point_biserial(
             violations, correctness
         ),
+        "performance_by_structural_annotation": annotation_groups,
     }
 
 

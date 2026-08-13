@@ -37,6 +37,7 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -70,6 +71,7 @@ from src.utils.tokenizer_utils import (
     resize_with_deterministic_added_token_init,
 )
 from src.utils.schedulers import hf_scheduler_name
+from src.utils.generation import apply_generation_contract
 import logging
 import numpy as np
 import yaml
@@ -829,6 +831,8 @@ def train_baseline(
     # Same: optimizer (AdamW), LR (3e-4), warmup (10%), schedule (cosine),
     #       batch size (32), epochs (20), weight_decay (0.01)
     # Different: No abstraction loss (that's the point of the baseline)
+    if baseline_type != "tinyllama_lora":
+        apply_generation_contract(model, dataset_name, tokenizer=tokenizer)
     training_args = Seq2SeqTrainingArguments(
         output_dir=str(output_dir),
         num_train_epochs=num_epochs,
@@ -847,7 +851,8 @@ def train_baseline(
         metric_for_best_model="eval_exact_match",  # Use exact match as primary metric
         greater_is_better=True,  # Higher exact match is better
         predict_with_generate=True,
-        generation_max_length=generation_max_length,
+        # The model generation config uses max_new_tokens, matching DAI exactly.
+        generation_max_length=None,
         generation_num_beams=generation_num_beams,
         gradient_accumulation_steps=gradient_accumulation_steps,
         remove_unused_columns=baseline_type != "tinyllama_lora",
@@ -1028,6 +1033,10 @@ def train_baseline(
         },
         "prediction_artifact": str(prediction_path),
         "compute_metrics": config_dict["compute_metrics"],
+        "source_snapshot_id": os.environ.get("SOURCE_SNAPSHOT_ID"),
+        "source_git_revision": os.environ.get("SOURCE_GIT_REVISION"),
+        "config_sha256": os.environ.get("CONFIG_SHA256"),
+        "data_sha256": os.environ.get("DATA_SHA256"),
     }
     with (output_dir / f"results_seed{seed}.json").open("w", encoding="utf-8") as handle:
         json.dump(publication_result, handle, indent=2, sort_keys=True)

@@ -86,7 +86,13 @@ fi
 
 VALIDATION_DIR="$SCRATCH_DIR/results/publication_validations/${SOURCE_SNAPSHOT_ID}_${SLURM_JOB_ID}"
 GATE_DIR="$SCRATCH_DIR/results/publication_gates/${SOURCE_SNAPSHOT_ID}_${SLURM_JOB_ID}"
-EXPORTS="ALL,PROJECT_DIR=$SNAPSHOT_DIR,SOURCE_SNAPSHOT_ID=$SOURCE_SNAPSHOT_ID,SCRATCH_DIR=$SCRATCH_DIR,VENV_DIR=$VENV_DIR,VALIDATION_DIR=$VALIDATION_DIR,GATE_DIR=$GATE_DIR"
+SEED_COUNT=$(cd "$SNAPSHOT_DIR" && "$VENV_DIR/bin/python" - "$MATRIX_RELATIVE" <<'PY'
+import json
+import sys
+print(len(json.load(open(sys.argv[1], encoding="utf-8"))["seeds"]))
+PY
+)
+EXPORTS="ALL,PROJECT_DIR=$SNAPSHOT_DIR,SOURCE_SNAPSHOT_ID=$SOURCE_SNAPSHOT_ID,SOURCE_GIT_REVISION=$SOURCE_REVISION,SCRATCH_DIR=$SCRATCH_DIR,VENV_DIR=$VENV_DIR,VALIDATION_DIR=$VALIDATION_DIR,GATE_DIR=$GATE_DIR"
 submit_job() {
     local submission
     submission=$(sbatch --parsable "$@")
@@ -153,7 +159,7 @@ with path.open("x", encoding="utf-8") as handle:
 PY
 
 echo "Source snapshot: $SOURCE_SNAPSHOT_ID"
-echo "Configurations: $((RUN_COUNT / 5)) (6 benchmarks x 12 methods)"
+echo "Configurations: $((RUN_COUNT / SEED_COUNT)) (6 benchmarks x 12 methods)"
 echo "Training runs:  $RUN_COUNT (ten paired seeds)"
 echo "Tests:           $TEST_JOB"
 echo "Reference gate:  $REFERENCE_JOB"

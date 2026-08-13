@@ -355,3 +355,15 @@ def get_generation_config(dataset_type: str, tokenizer=None, final_eval: bool = 
         config.pop(key, None)
     
     return config
+
+
+def apply_generation_contract(model, dataset_type: str, tokenizer=None) -> dict:
+    """Apply the shared max-new-token decoding contract to an HF model."""
+    config = get_generation_config(dataset_type, tokenizer=tokenizer)
+    generation_config = model.generation_config
+    generation_config.max_new_tokens = config["max_new_tokens"]
+    generation_config.max_length = None
+    generation_config.min_new_tokens = config["min_new_tokens"]
+    generation_config.num_beams = config["num_beams"]
+    generation_config.length_penalty = config["length_penalty"]
+    return config

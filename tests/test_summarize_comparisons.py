@@ -1,7 +1,10 @@
 """Tests for family-wise publication comparison summaries."""
 
 import importlib.util
+import json
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -57,6 +60,26 @@ class ComparisonSummaryTests(unittest.TestCase):
         self.assertEqual(summary["family_size"], 6)
         with self.assertRaisesRegex(ValueError, "family size"):
             summary_module.summarize_reports(reports[:5], expected_family_size=6)
+
+    def test_cli_completes_without_post_main_name_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report_paths = []
+            for index in range(2):
+                report = self._report(f"control_{index}", 0.1, [0.1])
+                report["benchmark"] = {"dataset": "scan", "split": "length"}
+                path = root / f"report_{index}.json"
+                path.write_text(json.dumps(report), encoding="utf-8")
+                report_paths.append(str(path))
+            output = root / "summary.json"
+            completed = subprocess.run(
+                [sys.executable, "scripts/summarize_comparisons.py", "--reports",
+                 *report_paths, "--output", str(output), "--expected-dataset", "scan",
+                 "--expected-split", "length", "--expected-family-size", "2"],
+                text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(json.loads(output.read_text())["family_size"], 2)
 
     @staticmethod
     def _report(control, p_value, differences):

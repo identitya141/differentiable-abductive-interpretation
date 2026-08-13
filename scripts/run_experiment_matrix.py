@@ -9,7 +9,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Sequence
 
-DEFAULT_SEEDS = (42, 123, 456, 789, 1024)
+PUBLICATION_MATRIX = Path("configs/publication/multidataset_matrix.json")
+
+
+def default_seeds() -> tuple[int, ...]:
+    """Load paired seeds from the canonical publication manifest."""
+    return tuple(json.loads(PUBLICATION_MATRIX.read_text(encoding="utf-8"))["seeds"])
 
 
 def build_commands(
@@ -60,7 +65,7 @@ def run_matrix(commands: Sequence[Sequence[str]], dry_run: bool) -> List[Dict]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--configs", nargs="+", type=Path, required=True)
-    parser.add_argument("--seeds", nargs="+", type=int, default=DEFAULT_SEEDS)
+    parser.add_argument("--seeds", nargs="+", type=int, default=None)
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument(
         "--manifest",
@@ -73,6 +78,7 @@ def main() -> None:
     missing_configs = [str(config) for config in args.configs if not config.is_file()]
     if missing_configs:
         raise FileNotFoundError(f"Missing experiment configs: {missing_configs}")
+    args.seeds = args.seeds if args.seeds is not None else list(default_seeds())
     if len(set(args.seeds)) != len(args.seeds):
         raise ValueError("Seeds must be unique for paired comparisons")
 

@@ -1,0 +1,8 @@
+{
+  "base": "scan_full_contrastive.json",
+  "experiment_name": "scan_length_no_structural_contrastive",
+  "output_dir": "experiments/scan_length_no_structural_contrastive",
+  "abstraction": {
+    "structural_contrastive_weight": 0.0
+  }
+}

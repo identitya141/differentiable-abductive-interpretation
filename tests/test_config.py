@@ -106,7 +106,7 @@ class ExperimentConfigTests(unittest.TestCase):
         base = load_config("configs/experiments/scan_full_contrastive.json")
 
         for filename, field_name in (
-            ("scan_fixed_composition_rules.json", "composition_rules_trainable"),
+            ("scan_frozen_random_composition_rules.json", "composition_rules_trainable"),
             ("scan_operator_agnostic.json", "operator_specific_composition"),
         ):
             with self.subTest(filename=filename):
@@ -142,6 +142,20 @@ class ExperimentConfigTests(unittest.TestCase):
             contrastive.abstraction.structural_contrastive_weight,
             base.abstraction.composition_weight,
         )
+
+    def test_full_minus_structural_contrastive_is_a_one_factor_ablation(self):
+        base = load_config("configs/experiments/scan_full_contrastive.json")
+        ablation = load_config(
+            "configs/experiments/scan_no_structural_contrastive.json"
+        )
+        self.assertEqual(ablation.abstraction.structural_contrastive_weight, 0.0)
+        ablation.abstraction.structural_contrastive_weight = (
+            base.abstraction.structural_contrastive_weight
+        )
+        self.assertEqual(ablation.abstraction, base.abstraction)
+        self.assertEqual(ablation.model, base.model)
+        self.assertEqual(ablation.data, base.data)
+        self.assertEqual(ablation.training, base.training)
 
     def test_primary_scan_methods_encode_distinct_scientific_controls(self):
         config_dir = Path("configs/experiments")

@@ -300,40 +300,6 @@ def download_slog(output_dir: Path):
     return True
 
 
-def download_slog(output_dir: Path):
-    """Download the official SLOG COGS-LF data and protected gen split."""
-    print("\n" + "=" * 60)
-    print("Downloading SLOG Dataset")
-    print("=" * 60)
-
-    output_dir = Path(output_dir)
-    cogs_dir = output_dir / "cogs_LF"
-    cogs_dir.mkdir(parents=True, exist_ok=True)
-    base_url = DATASET_CONFIGS["slog"]["url"]
-    for split in ("train", "dev", "test"):
-        download_url(
-            f"{base_url}cogs_LF/{split}.tsv",
-            cogs_dir / f"{split}.tsv",
-            f"SLOG {split}",
-        )
-
-    archive_path = output_dir / "generalization_sets.zip"
-    download_url(
-        f"{base_url}generalization_sets.zip",
-        archive_path,
-        "SLOG generalization",
-    )
-    with zipfile.ZipFile(archive_path, "r") as archive:
-        archive.extractall(output_dir, pwd=b"SLOG")
-    archive_path.unlink()
-
-    for relative_path in DATASET_CONFIGS["slog"]["expected_files"]:
-        if not (output_dir / relative_path).is_file():
-            raise FileNotFoundError(f"SLOG download is missing {relative_path}")
-    print("✓ SLOG downloaded from the official release")
-    return True
-
-
 def download_cfq(output_dir: Path):
     """Download CFQ dataset."""
     print("\n" + "="*60)

@@ -38,6 +38,13 @@ The separately reported secondary experiment
 preserving relation count, parent spans, child-span marginals, and operator
 frequencies. It is not added post hoc to the six-comparison primary family.
 
+`scan_reference_t5` is the matched architectural baseline and uses the shared
+optimizer/update regime. Random-initialized T5 and tree-linearized T5 are
+strong/tuned controls with their explicitly declared scratch-specific or
+representation-specific training regimes; they are not described as differing
+from DAI only in the structural objective. Every comparison reports optimizer
+updates, examples seen, trainable parameters, wall time, and accelerator time.
+
 All methods use the ten paired seeds `42`, `123`, `456`, `789`, `1024`,
 `2027`, `4099`, `7919`, `104729`, and `130363`. The expansion from five to
 ten was frozen before inspecting final OOD results because an exact two-sided
@@ -87,6 +94,13 @@ paired gold SPARQL query and conservatively aligned to question spans. The
 latter benchmarks therefore use **training-time gold-derived structural
 supervision**. They must not be described as using an input-only parser.
 
+The representations are not structurally identical across benchmarks. SCAN
+uses grammar-grounded parent/child composition. COGS and SLOG use gold-derived
+semantic-relation consistency whose parent span is the contiguous hull of the
+grounded arguments; that hull is a relation-grounded approximation and is not
+claimed to be a syntactic constituent. CFQ uses conservatively gold-derived
+relation consistency. Cross-benchmark results must retain these labels.
+
 No structure annotation is provided to generation. Held-out structural
 violation analysis may use gold-derived relations only as an explicitly
 oracle, gold-assisted secondary diagnostic; it is never an input to prediction,
@@ -123,6 +137,24 @@ revision, parameter counts, updates, examples seen, wall time, accelerator time,
 peak memory, and per-example raw and normalized predictions. The dependent
 analysis job validates method/seed coverage and writes SHA-256 manifests before
 statistics or figures are generated.
+
+DAI runs additionally report marginal type-usage entropy, maximum marginal
+type fraction, a predeclared collapse warning at `max_type_fraction >= 0.90`,
+structural-supervision coverage, the fraction of training minibatches carrying
+relations, and OOD exact match stratified by structurally annotated versus
+unannotated examples. A collapse warning invalidates an unqualified latent-type
+interpretation and must be disclosed; it is not silently optimized away.
+
+The clean `scan_no_structural_contrastive` one-factor ablation isolates the
+incremental structural-contrastive term from the core reconstruction,
+composition, and entropy objectives. The frozen-transfer ablation is named
+`scan_frozen_random_composition_rules`: it freezes Xavier-random transfer
+tensors and does not represent hand-designed symbolic rules.
+
+Cross-layer consistency remains disabled in the primary method. Separate
+abstraction networks do not have aligned latent-type indices, so direct
+cross-layer KL is treated only as exploratory unless an explicit alignment map
+or tied type space is introduced.
 
 ## Amendments
 

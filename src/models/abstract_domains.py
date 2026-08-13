@@ -213,15 +213,15 @@ class AbstractDomain(nn.Module, ABC):
 
 class TypeDomain(AbstractDomain):
     """
-    Type abstract domain for semantic categories.
+    Learned latent-type probability domain.
     
-    This domain captures the semantic type of each position in the sequence,
-    enabling type-based composition rules.
+    The type indices have no externally assigned semantics. The domain learns
+    sharp latent assignments and operator-conditioned composition consistency;
+    it does not perform conventional semantic type checking.
     
-    Type System:
-    - Each position is assigned a type from a fixed vocabulary
-    - Types determine valid compositions (type checking)
-    - Type errors indicate compositional violations
+    - Each position receives a distribution over a fixed latent vocabulary.
+    - Learned transfer tensors compose two distributions into a third.
+    - Disagreement is an empirical consistency violation, not a soundness error.
     """
     
     def __init__(
@@ -252,7 +252,7 @@ class TypeDomain(AbstractDomain):
         # Reconstruction network: type_embed → hidden subspace
         self.reconstruction_net = nn.Linear(type_embed_dim, hidden_dim)
         
-        # Type composition rules (learnable)
+        # Latent transfer logits (learnable unless frozen-random ablation)
         # Shape: [num_types, num_types, num_types] 
         # Entry [i,j,k] = probability that types i,j compose to type k
         self.composition_rules = nn.Parameter(

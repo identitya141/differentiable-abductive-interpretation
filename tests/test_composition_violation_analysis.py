@@ -10,11 +10,11 @@ class CompositionViolationAnalysisTests(unittest.TestCase):
     def test_reports_bounds_groups_coverage_and_correlation(self):
         report = analyze_rows(
             [
-                {"correct": True, "composition_violation": 0.1},
-                {"correct": True, "composition_violation": 0.2},
-                {"correct": False, "composition_violation": 0.8},
-                {"correct": False, "composition_violation": 0.9},
-                {"correct": False, "composition_violation": None},
+                {"correct": True, "composition_violation": 0.1, "structurally_annotated": True, "structural_relation_count": 2},
+                {"correct": True, "composition_violation": 0.2, "structurally_annotated": True, "structural_relation_count": 1},
+                {"correct": False, "composition_violation": 0.8, "structurally_annotated": True, "structural_relation_count": 1},
+                {"correct": False, "composition_violation": 0.9, "structurally_annotated": True, "structural_relation_count": 2},
+                {"correct": False, "composition_violation": None, "structurally_annotated": False, "structural_relation_count": 0},
             ]
         )
 
@@ -27,6 +27,14 @@ class CompositionViolationAnalysisTests(unittest.TestCase):
         self.assertAlmostEqual(report["incorrect"]["mean"], 0.85)
         self.assertLess(
             report["point_biserial_correlation_with_correctness"], 0.0
+        )
+        self.assertEqual(
+            report["performance_by_structural_annotation"]["annotated"]["exact_match"],
+            0.5,
+        )
+        self.assertEqual(
+            report["performance_by_structural_annotation"]["unannotated"]["exact_match"],
+            0.0,
         )
 
     def test_rejects_non_finite_violation(self):

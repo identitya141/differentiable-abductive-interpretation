@@ -1,15 +1,15 @@
 """
 Abstraction Loss Functions for DAI
 
-This module provides the core loss functions that enforce abstract interpretation
-constraints on neural representations. The main loss penalizes violations of
-abstract domain properties.
+This module provides abstract-interpretation-inspired consistency losses for
+neural representations. It does not establish lattice soundness or classical
+abstract-interpretation guarantees.
 
 Key Loss Components:
-1. Concretization Loss: Penalizes hidden states that violate their abstract constraints
+1. Reconstruction consistency (legacy field: concretization_loss)
 2. Composition Loss: Penalizes when composed representations don't match composed abstractions
 3. Consistency Loss: Enforces consistent abstractions for semantically similar inputs
-4. Type Checking Loss: Penalizes invalid type transitions (input→output)
+4. Optional latent-transition consistency (legacy field: type_checking_loss)
 """
 
 from dataclasses import dataclass
@@ -41,7 +41,7 @@ class AbstractionLoss(nn.Module):
     """
     Main abstraction loss class.
     
-    This loss enforces that neural hidden states respect abstract domain constraints.
+    This loss encourages neural hidden states to satisfy learned consistency objectives.
     It is the core training signal that biases representations toward program-like structure.
     
     Mathematical Formulation:
@@ -51,7 +51,7 @@ class AbstractionLoss(nn.Module):
                   + ν * L_consistency
     
     where:
-    - L_concretize: Penalizes hidden states outside their abstract regions
+    - L_concretize: Legacy name for representation reconstruction consistency
     - L_compose: Penalizes when f(α(h1), α(h2)) ≠ α(f(h1, h2))
     - L_consistency: Penalizes inconsistent abstractions for similar inputs
     """
@@ -74,7 +74,7 @@ class AbstractionLoss(nn.Module):
         
         Args:
             abstract_domain: The abstract domain to enforce
-            concretization_weight: Weight for concretization loss
+            concretization_weight: Legacy API name for reconstruction-consistency weight
             composition_weight: Weight for composition loss
             consistency_weight: Weight for consistency loss
             entropy_regularization: Regularize abstraction entropy
@@ -127,7 +127,7 @@ class AbstractionLoss(nn.Module):
         # Compute abstractions
         abstraction = self.abstract_domain.abstract(hidden_states)
         
-        # 1. Concretization loss
+        # 1. Representation reconstruction consistency (legacy API name)
         concretization_loss = self.abstract_domain.concretize_loss(
             hidden_states, abstraction, attention_mask=attention_mask
         )
@@ -1010,7 +1010,7 @@ class SubConstituentLoss(nn.Module):
     """
     Sub-Constituent Abstraction Loss from the proposal.
     
-    This implements the exact formula from the research proposal:
+    Exploratory sub-constituent consistency inspired by the proposal:
     
         L_compose = ||γ(h_x) - α(γ(h_{x_1}), γ(h_{x_2}))||²
     
@@ -1019,7 +1019,7 @@ class SubConstituentLoss(nn.Module):
     - x_1, x_2 are sub-constituents (e.g., "jump twice", "walk left")
     - h_x is the hidden representation of the full input
     - γ is the abstraction function (mapping hidden states to abstract elements)
-    - α is the abstract composition operator (composing abstractions in the lattice)
+    - α is a learned abstract composition operator
     
     This loss enforces that the model's abstraction of a complex expression
     matches the composition of its sub-part abstractions. This is the key
@@ -1266,8 +1266,8 @@ class SubConstituentLoss(nn.Module):
         """
         Compose multiple abstractions using abstract operator α.
         
-        For the DAI framework, this uses the abstract domain's join or 
-        composition operation. The composition follows the lattice structure.
+        This uses the domain's learned composition operation. It is not a
+        classical lattice join and is disabled in the primary method.
         
         Args:
             abstractions: List of AbstractElements to compose
@@ -1288,7 +1288,7 @@ class SubConstituentLoss(nn.Module):
             if hasattr(self.abstract_domain, 'compose'):
                 result = self.abstract_domain.compose(result, next_abs, self.composition_type)
             else:
-                # Fallback: element-wise join (maximum in lattice)
+                # Exploratory fallback: element-wise maximum on logits
                 result = self._fallback_compose(result, next_abs)
         
         return result

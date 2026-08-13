@@ -6,7 +6,8 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=64G
 #SBATCH --time=24:00:00
-#SBATCH --array=0-359%5
+# The coordinator supplies the exact --array range from the canonical manifest.
+#SBATCH --array=0-0
 #SBATCH --output=logs/multidataset_%A_%a.out
 #SBATCH --error=logs/multidataset_%A_%a.err
 #SBATCH --mail-type=BEGIN,END,FAIL
@@ -21,6 +22,7 @@ fi
 
 PROJECT_DIR=${PROJECT_DIR:?PROJECT_DIR must identify an immutable source snapshot}
 SOURCE_SNAPSHOT_ID=${SOURCE_SNAPSHOT_ID:?SOURCE_SNAPSHOT_ID is required}
+SOURCE_GIT_REVISION=${SOURCE_GIT_REVISION:?SOURCE_GIT_REVISION is required}
 SCRATCH_DIR=${SCRATCH_DIR:-"/scratch/$USER/dai-research"}
 VENV_DIR=${VENV_DIR:-"$HOME/dai-research/venv"}
 MATRIX_PATH=${MATRIX_PATH:-"$PROJECT_DIR/configs/publication/multidataset_matrix.json"}
@@ -121,39 +123,7 @@ DATA_SHA256=$(
         | sha256sum \
         | awk '{print $1}'
 )
-CONTRACT_PATH="$OUTPUT_DIR/run_contract.json"
-export CONFIG_SHA256 MATRIX_SHA256 DATA_SHA256 GATE_MANIFEST_SHA256 VALIDATION_MANIFEST_SHA256 SOURCE_SNAPSHOT_ID DATASET SPLIT METHOD RUNNER METHOD_OVERRIDE DATA_DIR
-python - "$CONTRACT_PATH" <<'PY'
-import json
-import os
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-contract = {
-    "schema_version": 1,
-    "source_snapshot_id": os.environ["SOURCE_SNAPSHOT_ID"],
-    "matrix_sha256": os.environ["MATRIX_SHA256"],
-    "config_sha256": os.environ["CONFIG_SHA256"],
-    "data_sha256": os.environ["DATA_SHA256"],
-    "gate_manifest_sha256": os.environ["GATE_MANIFEST_SHA256"],
-    "validation_manifest_sha256": os.environ["VALIDATION_MANIFEST_SHA256"],
-    "dataset": os.environ["DATASET"],
-    "split": os.environ["SPLIT"],
-    "method": os.environ["METHOD"],
-    "runner": os.environ["RUNNER"],
-    "override": os.environ["METHOD_OVERRIDE"],
-    "data_dir": os.environ["DATA_DIR"],
-}
-try:
-    with path.open("x", encoding="utf-8") as handle:
-        json.dump(contract, handle, indent=2, sort_keys=True)
-        handle.write("\n")
-except FileExistsError:
-    existing = json.loads(path.read_text(encoding="utf-8"))
-    if existing != contract:
-        raise SystemExit(f"Refusing to reuse output with a different contract: {path}")
-PY
+export CONFIG_SHA256 MATRIX_SHA256 DATA_SHA256 GATE_MANIFEST_SHA256 VALIDATION_MANIFEST_SHA256 SOURCE_SNAPSHOT_ID SOURCE_GIT_REVISION DATASET SPLIT METHOD RUNNER METHOD_OVERRIDE DATA_DIR
 
 export CUBLAS_WORKSPACE_CONFIG=:4096:8
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
@@ -185,6 +155,34 @@ for SEED in "$SEED"; do
         echo "ERROR: Refusing to overwrite partial seed directory: $RUN_DIR" >&2
         exit 1
     fi
+    mkdir -p "$RUN_DIR"
+    CONTRACT_PATH="$RUN_DIR/run_contract.json"
+    export RUN_CONTRACT_PATH="$CONTRACT_PATH"
+    python - "$CONTRACT_PATH" "$SEED" <<'PY'
+import json
+import os
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+contract = {
+    "schema_version": 1,
+    "source_snapshot_id": os.environ["SOURCE_SNAPSHOT_ID"],
+    "source_git_revision": os.environ["SOURCE_GIT_REVISION"],
+    "matrix_sha256": os.environ["MATRIX_SHA256"],
+    "config_sha256": os.environ["CONFIG_SHA256"],
+    "data_sha256": os.environ["DATA_SHA256"],
+    "gate_manifest_sha256": os.environ["GATE_MANIFEST_SHA256"],
+    "validation_manifest_sha256": os.environ["VALIDATION_MANIFEST_SHA256"],
+    "dataset": os.environ["DATASET"], "split": os.environ["SPLIT"],
+    "method": os.environ["METHOD"], "seed": int(sys.argv[2]),
+    "runner": os.environ["RUNNER"], "override": os.environ["METHOD_OVERRIDE"],
+    "data_dir": os.environ["DATA_DIR"],
+}
+with path.open("x", encoding="utf-8") as handle:
+    json.dump(contract, handle, indent=2, sort_keys=True)
+    handle.write("\n")
+PY
     export PYTHONHASHSEED=$SEED
     export PUBLICATION_METHOD=$METHOD
     case "$RUNNER" in

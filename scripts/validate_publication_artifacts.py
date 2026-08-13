@@ -118,6 +118,8 @@ def validate_artifacts(
     experiment_dir: Path,
     methods: Sequence[str],
     seeds: Sequence[int],
+    *,
+    require_provenance: bool = False,
 ) -> Dict:
     if len(set(methods)) != len(methods):
         raise ValueError("Method list contains duplicates")
@@ -145,6 +147,27 @@ def validate_artifacts(
                     raise ValueError(f"Missing or empty artifact: {path}")
 
             result = _validate_result(result_path)
+            if require_provenance:
+                contract_path = run_dir / "run_contract.json"
+                if not contract_path.is_file():
+                    raise ValueError(f"Missing run contract: {contract_path}")
+                contract = json.loads(contract_path.read_text(encoding="utf-8"))
+                expected = {
+                    "source_snapshot_id": contract.get("source_snapshot_id"),
+                    "source_git_revision": contract.get("source_git_revision"),
+                    "config_sha256": contract.get("config_sha256"),
+                    "data_sha256": contract.get("data_sha256"),
+                    "seed": seed,
+                    "method": method,
+                }
+                for field, value in expected.items():
+                    if value in (None, ""):
+                        raise ValueError(f"Missing {field} in {contract_path}")
+                    if result.get(field) != value:
+                        raise ValueError(
+                            f"Result/contract mismatch for {field} in {result_path}: "
+                            f"{result.get(field)!r} != {value!r}"
+                        )
             experiment_name, examples = _validate_predictions(prediction_path, seed)
             method_experiment_names.add(experiment_name)
             final_evaluation = result["final_evaluation"]
@@ -204,9 +227,13 @@ def main() -> None:
     parser.add_argument("--methods", nargs="+", required=True)
     parser.add_argument("--seeds", nargs="+", type=int, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--require-provenance", action="store_true")
     args = parser.parse_args()
 
-    manifest = validate_artifacts(args.experiment_dir, args.methods, args.seeds)
+    manifest = validate_artifacts(
+        args.experiment_dir, args.methods, args.seeds,
+        require_provenance=args.require_provenance,
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n",

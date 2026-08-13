@@ -13,6 +13,7 @@ import random
 import time
 import json
 import logging
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
@@ -47,6 +48,7 @@ class TrainingConfig:
     # Experiment identification
     experiment_name: str = "dai_experiment"
     run_id: Optional[str] = None
+    dataset_type: str = "scan"
     
     # Reproducibility
     seed: int = 42
@@ -130,6 +132,7 @@ class TrainingConfig:
     # Logging
     logging_steps: int = 100
     log_abstraction_diagnostics: bool = True
+    max_type_fraction_threshold: float = 0.90
     
     # Evaluation
     eval_strategy: str = "epoch"  # "epoch", "steps", "no"
@@ -271,6 +274,9 @@ class DAITrainer:
         # Logging
         self.train_log: List[Dict] = []
         self.eval_log: List[Dict] = []
+        self.latest_type_diagnostics: Optional[Dict] = None
+        self.structurally_supervised_batches = 0
+        self.total_training_batches = 0
         
         # Over-constraint detection
         self.over_constraint_detector = None
@@ -511,6 +517,11 @@ class DAITrainer:
             "peak_cuda_memory_bytes": peak_cuda_memory_bytes,
             "train_log": self.train_log,
             "eval_log": self.eval_log,
+            "latent_type_diagnostics": self.latest_type_diagnostics,
+            "structurally_supervised_batch_fraction": (
+                self.structurally_supervised_batches / self.total_training_batches
+                if self.total_training_batches else 0.0
+            ),
         }
     
     def _train_epoch(self, epoch: int):
@@ -594,6 +605,17 @@ class DAITrainer:
                     max(float(value.detach().item()) for value in max_type_fractions)
                     if max_type_fractions else 0.0
                 )
+                if max_type_fractions:
+                    self.latest_type_diagnostics = {
+                        "type_usage_entropy": type_usage_entropy,
+                        "max_type_fraction": max_type_fraction,
+                        "collapse_threshold": self.config.max_type_fraction_threshold,
+                        "collapse_detected": (
+                            max_type_fraction >= self.config.max_type_fraction_threshold
+                        ),
+                    }
+                self.total_training_batches += 1
+                self.structurally_supervised_batches += int(composition_count > 0)
 
                 effective_abs_loss = abs_loss
                 effective_abs_weight = abs_weight
@@ -696,8 +718,10 @@ class DAITrainer:
                 loss.backward()
 
             composition_grad_norm = 0.0
+            abstraction_net_grad_norm = 0.0
             if should_log_update:
                 composition_gradient_squares = []
+                abstraction_gradient_squares = []
                 for name, parameter in self.model.named_parameters():
                     if (
                         "operator_composition_rules" in name
@@ -706,9 +730,17 @@ class DAITrainer:
                         composition_gradient_squares.append(
                             parameter.grad.detach().float().norm().pow(2)
                         )
+                    if "abstraction_net" in name and parameter.grad is not None:
+                        abstraction_gradient_squares.append(
+                            parameter.grad.detach().float().norm().pow(2)
+                        )
                 if composition_gradient_squares:
                     composition_grad_norm = float(
                         torch.stack(composition_gradient_squares).sum().sqrt().item()
+                    )
+                if abstraction_gradient_squares:
+                    abstraction_net_grad_norm = float(
+                        torch.stack(abstraction_gradient_squares).sum().sqrt().item()
                     )
             
             # Over-constraint detection with λ backoff support
@@ -822,6 +854,7 @@ class DAITrainer:
                         f"wt_comp={weighted_composition_loss:.6f} | "
                         f"comp_count={composition_count:.0f} | "
                         f"comp_grad_norm={composition_grad_norm:.6f} | "
+                        f"abstraction_net_grad_norm={abstraction_net_grad_norm:.6f} | "
                         f"task_grad_norm={task_gradient_norm:.6f} | "
                         f"abs_grad_norm={abstraction_gradient_norm:.6f} | "
                         f"abs_task_grad_ratio={abstraction_task_gradient_ratio:.6f} | "
@@ -896,19 +929,13 @@ class DAITrainer:
                 if hasattr(self.model, 'generate'):
                     # Get dataset-specific generation config (passes tokenizer to detect atomic mode)
                     gen_config = get_generation_config(
-                        getattr(self.config, 'dataset_type', 'scan'),
-                        tokenizer=self.tokenizer,
+                        self.config.dataset_type, tokenizer=self.tokenizer,
                     )
                     # Fast eval defaults: force greedy decoding (num_beams=1) for per-epoch eval
                     # This massively reduces eval time while still tracking learning progress
                     gen_config = dict(gen_config)  # Make a copy to avoid mutating shared config
                     gen_config["num_beams"] = 1
                     gen_config["num_return_sequences"] = 1
-                    # For atomic token mode, use tighter length constraints for speed
-                    dataset_type = getattr(self.config, 'dataset_type', 'scan')
-                    if dataset_type.lower().startswith("scan"):
-                        gen_config["min_new_tokens"] = min(gen_config.get("min_new_tokens", 0), 20)
-                        gen_config["max_new_tokens"] = min(gen_config.get("max_new_tokens", 256), 60)
                     generated = generate_scan_optimized(
                         model=self.model,
                         tokenizer=self.tokenizer,
@@ -975,10 +1002,12 @@ class DAITrainer:
             "torch_cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
         }
         torch.save(rng_state, checkpoint_dir / "rng_state.pt")
-        torch.save(
-            self.model.abstraction_scheduler.state_dict(),
-            checkpoint_dir / "abstraction_scheduler.pt",
-        )
+        abstraction_scheduler = getattr(self.model, "abstraction_scheduler", None)
+        if abstraction_scheduler is not None:
+            torch.save(
+                abstraction_scheduler.state_dict(),
+                checkpoint_dir / "abstraction_scheduler.pt",
+            )
         
         # Save training state with additional diagnostic info
         state_data = {
@@ -995,6 +1024,28 @@ class DAITrainer:
             f"Saved checkpoint: {name} (epoch={self.state.epoch}, "
             f"best_metric={self.state.best_metric:.4f}, best_epoch={self.state.best_epoch})"
         )
+        self._prune_checkpoints()
+
+    def _prune_checkpoints(self):
+        """Preserve best/final and prune older ordinary checkpoints."""
+        limit = self.config.save_total_limit
+        if limit is None or limit < 1:
+            return
+        root = self.config.output_path / "checkpoints"
+        protected = {"best", "final"}
+        ordinary = sorted(
+            (
+                path for path in root.iterdir()
+                if path.is_dir() and path.name not in protected
+            ),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        protected_count = sum((root / name).is_dir() for name in protected)
+        ordinary_limit = max(0, limit - protected_count)
+        for stale in ordinary[ordinary_limit:]:
+            shutil.rmtree(stale)
+            logger.info("Removed old checkpoint due to save_total_limit: %s", stale)
     
     def load_checkpoint(self, name: str):
         """Load a checkpoint."""
@@ -1020,8 +1071,9 @@ class DAITrainer:
                 torch.load(checkpoint_dir / "grad_scaler.pt", map_location=self.device)
             )
         abstraction_scheduler_path = checkpoint_dir / "abstraction_scheduler.pt"
-        if abstraction_scheduler_path.exists():
-            self.model.abstraction_scheduler.load_state_dict(
+        abstraction_scheduler = getattr(self.model, "abstraction_scheduler", None)
+        if abstraction_scheduler_path.exists() and abstraction_scheduler is not None:
+            abstraction_scheduler.load_state_dict(
                 torch.load(abstraction_scheduler_path, map_location="cpu")
             )
         rng_path = checkpoint_dir / "rng_state.pt"
