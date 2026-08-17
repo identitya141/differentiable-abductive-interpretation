@@ -48,17 +48,16 @@ if [[ ! -d "$remote_dir/.git" ]]; then
     fi
     git clone "$source_remote" "$remote_dir"
 fi
+# Older deployments changed executable bits after checkout. Ignore those
+# permission-only differences; all entrypoints are invoked explicitly through
+# bash or python and do not need deployment-time chmod mutations.
+git -C "$remote_dir" config core.fileMode false
 git -C "$remote_dir" fetch origin
 git -C "$remote_dir" checkout --detach "$source_revision"
 REMOTE
 
 echo "Staging all canonical publication datasets..."
 bash slurm/stage_publication_data.sh "$SAPELO_HOST"
-
-# Make scripts executable
-echo ""
-echo "Making scripts executable..."
-ssh "$SAPELO_HOST" "cd $REMOTE_DIR && chmod +x slurm/*.sh scripts/*.py"
 
 echo ""
 echo "=================================================="
