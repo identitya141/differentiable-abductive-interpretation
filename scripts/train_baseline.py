@@ -637,6 +637,7 @@ def train_baseline(
     record_eos_diagnostics: bool = True,
     model_kwargs: dict = None,
     publication_mode: bool = True,
+    resume_from_checkpoint: bool = False,
 ):
     """Train a baseline model."""
     
@@ -884,7 +885,7 @@ def train_baseline(
     logger.info("Starting training...")
     print("\nStarting training...")
     train_start = time.time()
-    train_result = trainer.train()
+    train_result = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
     train_time = time.time() - train_start
     
     # Save best model
@@ -1091,6 +1092,10 @@ def main():
         "--allow-network-data-fallback", action="store_true",
         help="Permit non-publication exploratory runs to download missing data",
     )
+    parser.add_argument(
+        "--resume-from-checkpoint", action="store_true",
+        help="Resume from the newest valid checkpoint in the output directory",
+    )
     
     args = parser.parse_args()
     file_config = load_config_file(args.config)
@@ -1150,6 +1155,7 @@ def main():
         max_target_length=model_config.get("max_target_length", 128),
         model_kwargs=model_kwargs,
         publication_mode=not args.allow_network_data_fallback,
+        resume_from_checkpoint=args.resume_from_checkpoint,
     )
 
 

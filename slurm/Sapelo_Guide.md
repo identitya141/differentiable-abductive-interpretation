@@ -2,6 +2,38 @@
 
 Complete guide for running DAI experiments on UGA's Sapelo2 HPC cluster.
 
+## Canonical H100 end-to-end workflow
+
+The single supported end-to-end entrypoint is:
+
+```bash
+mkdir -p logs
+sbatch slurm/submit_multidataset_pipeline.sh
+```
+
+`submit_publication_pipeline.sh` is a backward-compatible alias. The
+coordinator submits tests, reference equivalence, dataset validation, an H100
+numerical smoke test, an H100 overfit gate, the complete 720-run publication
+matrix, and dependent analysis. Matrix tasks request one H100 from
+`gpu_30d_p` for 14 days and run at most five tasks concurrently by default.
+
+Completed result/prediction pairs are skipped on a subsequent submission.
+Incomplete baseline runs resume from the newest Hugging Face checkpoint, and
+incomplete DAI runs resume from the newest completed epoch checkpoint. Resume
+is refused if the source snapshot, matrix, config, dataset, method, or seed has
+changed. Therefore, after a failure, redeploy the same committed revision and
+submit the same coordinator command again.
+
+Monitor the workflow with:
+
+```bash
+squeue -u "$USER"
+sacct -X --starttime today --format=JobID,JobName,State,Elapsed,ExitCode
+```
+
+The older single-dataset examples later in this guide are retained for
+historical reference and are not the canonical publication workflow.
+
 ---
 
 ## 📋 Prerequisites

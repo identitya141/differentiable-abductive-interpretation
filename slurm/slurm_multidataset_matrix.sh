@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=dai_multi_matrix
-#SBATCH --partition=gpu_p
-#SBATCH --gres=gpu:A100:1
+#SBATCH --partition=gpu_30d_p
+#SBATCH --gres=gpu:H100:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=64G
-#SBATCH --time=24:00:00
+#SBATCH --time=14-00:00:00
 # The coordinator supplies the exact --array range from the canonical manifest.
 #SBATCH --array=0-0
 #SBATCH --output=logs/multidataset_%A_%a.out
@@ -151,10 +151,6 @@ for SEED in "$SEED"; do
         echo "Skipping completed seed $SEED: $RESULT_PATH"
         continue
     fi
-    if [[ -d "$RUN_DIR" && -n "$(find "$RUN_DIR" -mindepth 1 -print -quit)" ]]; then
-        echo "ERROR: Refusing to overwrite partial seed directory: $RUN_DIR" >&2
-        exit 1
-    fi
     mkdir -p "$RUN_DIR"
     CONTRACT_PATH="$RUN_DIR/run_contract.json"
     export RUN_CONTRACT_PATH="$CONTRACT_PATH"
@@ -179,14 +175,27 @@ contract = {
     "runner": os.environ["RUNNER"], "override": os.environ["METHOD_OVERRIDE"],
     "data_dir": os.environ["DATA_DIR"],
 }
-with path.open("x", encoding="utf-8") as handle:
-    json.dump(contract, handle, indent=2, sort_keys=True)
-    handle.write("\n")
+if path.exists():
+    existing = json.loads(path.read_text(encoding="utf-8"))
+    identity_keys = {
+        "source_snapshot_id", "source_git_revision", "matrix_sha256",
+        "config_sha256", "data_sha256", "dataset", "split", "method",
+        "seed", "runner", "override", "data_dir",
+    }
+    if any(existing.get(key) != contract.get(key) for key in identity_keys):
+        raise SystemExit(f"Existing run contract differs; refusing unsafe resume: {path}")
+else:
+    path.write_text(json.dumps(contract, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
     export PYTHONHASHSEED=$SEED
     export PUBLICATION_METHOD=$METHOD
     case "$RUNNER" in
         baseline)
+            RESUME_ARGS=()
+            if compgen -G "$RUN_DIR/checkpoint-*" >/dev/null; then
+                RESUME_ARGS+=(--resume-from-checkpoint)
+                echo "Resuming baseline from newest checkpoint in $RUN_DIR"
+            fi
             python scripts/train_baseline.py \
                 --baseline "$METHOD" \
                 --config "$CONFIG_PATH" \
@@ -195,6 +204,7 @@ PY
                 --data-dir "$DATA_DIR" \
                 --output-dir "$RUN_DIR" \
                 --seed "$SEED" \
+                "${RESUME_ARGS[@]}" \
                 2>&1 | tee "$TASK_LOG"
             ;;
         dai_control|proposed)
@@ -202,10 +212,17 @@ PY
             if [[ -n "$METHOD_OVERRIDE" ]]; then
                 OVERRIDE="$OVERRIDE,$METHOD_OVERRIDE"
             fi
+            RESUME_ARGS=()
+            LATEST_CHECKPOINT=$(find "$RUN_DIR/checkpoints" -mindepth 1 -maxdepth 1 -type d -name 'epoch_*' -printf '%f\n' 2>/dev/null | sort -t_ -k2,2n | tail -1)
+            if [[ -n "$LATEST_CHECKPOINT" ]]; then
+                RESUME_ARGS+=(--resume-from-checkpoint "$LATEST_CHECKPOINT")
+                echo "Resuming DAI from $LATEST_CHECKPOINT"
+            fi
             python scripts/train.py \
                 --config "$CONFIG_PATH" \
                 --seed "$SEED" \
                 --override "$OVERRIDE" \
+                "${RESUME_ARGS[@]}" \
                 2>&1 | tee "$TASK_LOG"
             ;;
         *)

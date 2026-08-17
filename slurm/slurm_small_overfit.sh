@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=dai_overfit_gate
-#SBATCH --partition=gpu_p
-#SBATCH --gres=gpu:A100:1
+#SBATCH --partition=gpu_30d_p
+#SBATCH --gres=gpu:H100:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G

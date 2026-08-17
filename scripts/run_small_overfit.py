@@ -95,8 +95,8 @@ def run_gate(args) -> dict:
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is unavailable; refusing to run the overfit gate")
     device_name = torch.cuda.get_device_name(0)
-    if "A100" not in device_name.upper():
-        raise RuntimeError(f"A100 required, found: {device_name}")
+    if "H100" not in device_name.upper():
+        raise RuntimeError(f"H100 required, found: {device_name}")
 
     config = load_config(args.config)
     if config.training.max_steps is None or config.training.max_steps <= 0:

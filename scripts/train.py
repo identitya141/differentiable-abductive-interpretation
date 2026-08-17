@@ -282,6 +282,7 @@ def create_model(config: ExperimentConfig) -> torch.nn.Module:
 def train(
     config: ExperimentConfig,
     seed: Optional[int] = None,
+    resume_from_checkpoint: Optional[str] = None,
 ) -> Dict:
     """
     Run training with given configuration.
@@ -420,7 +421,7 @@ def train(
     )
     
     # Train
-    results = trainer.train()
+    results = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
     results['resolved_config'] = str(resolved_config_path)
     results['source_revision'] = repro_manager.info.get('git_hash')
     results['source_tree_dirty'] = repro_manager.info.get(
@@ -606,6 +607,12 @@ def main():
         help="Random seed override (defaults to the config seed)"
     )
     parser.add_argument(
+        "--resume-from-checkpoint",
+        type=str,
+        default=None,
+        help="Resume from a named checkpoint directory (for example epoch_7)",
+    )
+    parser.add_argument(
         "--quick",
         action="store_true",
         help="Quick training run (fewer epochs, smaller batch)"
@@ -654,7 +661,11 @@ def main():
         config = dict_to_config(merge_configs(dataclass_to_dict(config), overrides))
     
     # Run training
-    results = train(config, seed=args.seed)
+    results = train(
+        config,
+        seed=args.seed,
+        resume_from_checkpoint=args.resume_from_checkpoint,
+    )
     
     print("\n" + "="*50)
     print("TRAINING COMPLETE")

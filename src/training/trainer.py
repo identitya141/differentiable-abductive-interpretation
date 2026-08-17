@@ -394,7 +394,7 @@ class DAITrainer:
         with open(repro_path, 'w') as f:
             json.dump(get_reproducibility_info(), f, indent=2)
     
-    def train(self):
+    def train(self, resume_from_checkpoint: Optional[str] = None):
         """
         Main training loop.
         
@@ -408,12 +408,21 @@ class DAITrainer:
         logger.info(f"  Batch size: {self.config.train_batch_size}")
         logger.info(f"  Gradient accumulation: {self.config.gradient_accumulation_steps}")
         
+        if resume_from_checkpoint is not None:
+            self.load_checkpoint(resume_from_checkpoint)
+            logger.info(
+                "Resuming training after completed epoch %s at global step %s",
+                self.state.epoch,
+                self.state.global_step,
+            )
+
         self.model.train()
         training_start_time = time.time()
         if torch.cuda.is_available():
             torch.cuda.reset_peak_memory_stats()
         
-        for epoch in range(self.num_epochs):
+        start_epoch = self.state.epoch + 1 if resume_from_checkpoint is not None else 0
+        for epoch in range(start_epoch, self.num_epochs):
             self.state.epoch = epoch
             self.state.reset_epoch_stats()
             
@@ -1015,6 +1024,8 @@ class DAITrainer:
             "epoch": self.state.epoch,
             "best_metric": self.state.best_metric,
             "best_epoch": self.state.best_epoch,
+            "epochs_without_improvement": self.state.epochs_without_improvement,
+            "examples_seen": self.state.examples_seen,
             "checkpoint_name": name,
         }
         with open(checkpoint_dir / "training_state.json", 'w') as f:
@@ -1092,6 +1103,10 @@ class DAITrainer:
             self.state.epoch = state_dict["epoch"]
             self.state.best_metric = state_dict["best_metric"]
             self.state.best_epoch = state_dict["best_epoch"]
+            self.state.epochs_without_improvement = state_dict.get(
+                "epochs_without_improvement", 0
+            )
+            self.state.examples_seen = state_dict.get("examples_seen", 0)
         
         logger.info(f"Loaded checkpoint: {name}")
     
