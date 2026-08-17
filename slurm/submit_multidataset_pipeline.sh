@@ -32,7 +32,16 @@ SOURCE_REVISION=$(git rev-parse HEAD)
 SOURCE_STATE_HASH=$(
     {
         git diff --binary HEAD
+        # Runtime data and scratch symlinks are deliberately absent from the
+        # immutable source snapshot and must not participate in its hash.
         git ls-files --others --exclude-standard -z \
+            --exclude=data --exclude='data/**' \
+            --exclude=checkpoints --exclude='checkpoints/**' \
+            --exclude=experiments --exclude='experiments/**' \
+            --exclude=logs --exclude='logs/**' \
+            --exclude=results --exclude='results/**' \
+            --exclude=venv --exclude='venv/**' \
+            --exclude=.venv --exclude='.venv/**' \
             | sort -z \
             | xargs -0 -r sha256sum
     } | sha256sum | awk '{print $1}'
