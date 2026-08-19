@@ -35,27 +35,8 @@ export PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
 export PROJECT_DIR VENV_DIR
 
 cd "$PROJECT_DIR"
-python - <<'PY' \
+export PYTHONPATH="$PROJECT_DIR"
+read -ra TEST_PATH_ARGS <<< "${TEST_PATHS:-tests}"
+"$VENV_DIR/bin/python" -m pytest "${TEST_PATH_ARGS[@]}" -q \
+    -o "cache_dir=$JOB_TMP_DIR/pytest-cache" \
     2>&1 | tee "$SCRATCH_DIR/test-results/tests_$SLURM_JOB_ID.log"
-import os
-from pathlib import Path
-import shlex
-import sys
-
-import torch
-
-sys.path.insert(0, os.environ["PROJECT_DIR"])
-sys.path.insert(
-    1,
-    str(
-        Path(os.environ["VENV_DIR"])
-        / "lib"
-        / f"python{sys.version_info.major}.{sys.version_info.minor}"
-        / "site-packages"
-    ),
-)
-import pytest
-
-test_paths = shlex.split(os.environ.get("TEST_PATHS", "tests"))
-raise SystemExit(pytest.main([*test_paths, "-q"]))
-PY

@@ -66,6 +66,7 @@ class MultidatasetMatrixTests(unittest.TestCase):
 
     def test_launcher_uses_immutable_snapshot_and_hierarchical_output(self):
         launcher = (ROOT / "slurm/slurm_multidataset_matrix.sh").read_text()
+        worker = (ROOT / "slurm/slurm_multidataset_worker.sh").read_text()
         submitter = (ROOT / "slurm/submit_multidataset_pipeline.sh").read_text()
         self.assertIn('if [[ -w "$PROJECT_DIR" ]]', launcher)
         self.assertIn(
@@ -92,6 +93,12 @@ class MultidatasetMatrixTests(unittest.TestCase):
         self.assertIn("#SBATCH --partition=gpu_30d_p", launcher)
         self.assertIn("#SBATCH --gres=gpu:H100:1", launcher)
         self.assertIn("#SBATCH --time=14-00:00:00", launcher)
+        self.assertIn("#SBATCH --partition=gpu_30d_p", worker)
+        self.assertIn("#SBATCH --gres=gpu:H100:1", worker)
+        self.assertIn("MATRIX_ROW+=MATRIX_WORKERS", worker)
+        self.assertIn("slurm/slurm_multidataset_worker.sh", submitter)
+        self.assertIn('MATRIX_WORKERS=${MATRIX_WORKERS:-5}', submitter)
+        self.assertIn('if ! submission=$(sbatch --parsable "$@"); then', submitter)
         self.assertIn("chmod -R a-w", submitter)
         self.assertIn("--exclude='data/**'", submitter)
         self.assertIn("--exclude='logs/**'", submitter)

@@ -112,7 +112,14 @@ PY
 EXPORTS="ALL,PROJECT_DIR=$SNAPSHOT_DIR,SOURCE_SNAPSHOT_ID=$SOURCE_SNAPSHOT_ID,SOURCE_GIT_REVISION=$SOURCE_REVISION,SCRATCH_DIR=$SCRATCH_DIR,VENV_DIR=$VENV_DIR,VALIDATION_DIR=$VALIDATION_DIR,GATE_DIR=$GATE_DIR"
 submit_job() {
     local submission
-    submission=$(sbatch --parsable "$@")
+    if ! submission=$(sbatch --parsable "$@"); then
+        echo "ERROR: sbatch submission failed: $*" >&2
+        return 1
+    fi
+    if [[ -z "$submission" ]]; then
+        echo "ERROR: sbatch returned an empty job ID: $*" >&2
+        return 1
+    fi
     printf '%s\n' "${submission%%;*}"
 }
 
@@ -131,11 +138,16 @@ OVERFIT_SOURCE="$SCRATCH_DIR/results/gates/small_overfit_${OVERFIT_JOB}.json"
 GATE_JOB=$(submit_job --dependency="afterok:$REFERENCE_JOB:$OVERFIT_JOB" \
     --export="$EXPORTS,REFERENCE_SOURCE=$REFERENCE_SOURCE,OVERFIT_SOURCE=$OVERFIT_SOURCE" \
     "$SNAPSHOT_DIR/slurm/slurm_prepare_publication_gates.sh")
+MATRIX_WORKERS=${MATRIX_WORKERS:-5}
+if (( MATRIX_WORKERS < 1 || MATRIX_WORKERS > 5 )); then
+    echo "ERROR: MATRIX_WORKERS must be between 1 and 5." >&2
+    exit 2
+fi
 MATRIX_JOB=$(submit_job \
     --dependency="afterok:$VALIDATION_JOB:$GATE_JOB" \
-    --array="0-$((RUN_COUNT - 1))%${MAX_CONCURRENT:-5}" \
-    --export="$EXPORTS" \
-    "$SNAPSHOT_DIR/slurm/slurm_multidataset_matrix.sh")
+    --array="0-$((MATRIX_WORKERS - 1))%$MATRIX_WORKERS" \
+    --export="$EXPORTS,RUN_COUNT=$RUN_COUNT,MATRIX_WORKERS=$MATRIX_WORKERS" \
+    "$SNAPSHOT_DIR/slurm/slurm_multidataset_worker.sh")
 ANALYSIS_JOB=$(submit_job \
     --dependency="afterok:$MATRIX_JOB" \
     --export="$EXPORTS" \

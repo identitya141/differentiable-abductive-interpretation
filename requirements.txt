@@ -19,6 +19,7 @@ torchaudio==2.1.2
 # Hugging Face Ecosystem
 transformers==4.36.2
 tokenizers==0.15.0
+safetensors==0.4.1
 sentencepiece==0.2.0
 datasets==2.16.1
 accelerate==0.25.0

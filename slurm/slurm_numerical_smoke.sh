@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=dai_num_smoke
-#SBATCH --partition=gpu_30d_p
+#SBATCH --partition=gpu_p
 #SBATCH --gres=gpu:H100:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
