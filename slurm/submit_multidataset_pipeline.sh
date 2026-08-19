@@ -26,6 +26,13 @@ if [[ ! -d "$PROJECT_DIR/.git" || ! -x "$VENV_DIR/bin/python" ]]; then
     exit 2
 fi
 
+# Batch nodes start with a minimal environment. Load the same Python/CUDA
+# module used by every downstream job, then use the virtual-environment
+# interpreter explicitly for coordinator-side metadata operations.
+module purge
+module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
+source "$VENV_DIR/bin/activate"
+
 cd "$PROJECT_DIR"
 echo "Coordinator job: $SLURM_JOB_ID on $SLURM_NODELIST"
 SOURCE_REVISION=$(git rev-parse HEAD)
@@ -64,7 +71,8 @@ if [[ ! -d "$SNAPSHOT_DIR" ]]; then
         --exclude=results \
         "$PROJECT_DIR/" "$TEMP_SNAPSHOT/"
     SOURCE_REVISION="$SOURCE_REVISION" SOURCE_STATE_HASH="$SOURCE_STATE_HASH" \
-        SOURCE_SNAPSHOT_ID="$SOURCE_SNAPSHOT_ID" python - "$TEMP_SNAPSHOT/source_manifest.json" <<'PY'
+        SOURCE_SNAPSHOT_ID="$SOURCE_SNAPSHOT_ID" "$VENV_DIR/bin/python" - \
+        "$TEMP_SNAPSHOT/source_manifest.json" <<'PY'
 import json
 import os
 from pathlib import Path
@@ -139,7 +147,7 @@ TEST_JOB="$TEST_JOB" REFERENCE_JOB="$REFERENCE_JOB" VALIDATION_JOB="$VALIDATION_
 SMOKE_JOB="$SMOKE_JOB" OVERFIT_JOB="$OVERFIT_JOB" GATE_JOB="$GATE_JOB" \
 MATRIX_JOB="$MATRIX_JOB" ANALYSIS_JOB="$ANALYSIS_JOB" \
     SOURCE_SNAPSHOT_ID="$SOURCE_SNAPSHOT_ID" SNAPSHOT_DIR="$SNAPSHOT_DIR" \
-    python - "$WORKFLOW_DIR/submission_${MATRIX_JOB}.json" <<'PY'
+    "$VENV_DIR/bin/python" - "$WORKFLOW_DIR/submission_${MATRIX_JOB}.json" <<'PY'
 import json
 import os
 from datetime import datetime, timezone
