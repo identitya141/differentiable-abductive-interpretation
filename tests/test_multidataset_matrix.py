@@ -67,6 +67,7 @@ class MultidatasetMatrixTests(unittest.TestCase):
     def test_launcher_uses_immutable_snapshot_and_hierarchical_output(self):
         launcher = (ROOT / "slurm/slurm_multidataset_matrix.sh").read_text()
         worker = (ROOT / "slurm/slurm_multidataset_worker.sh").read_text()
+        matrix_submitter = (ROOT / "slurm/slurm_submit_matrix_stage.sh").read_text()
         submitter = (ROOT / "slurm/submit_multidataset_pipeline.sh").read_text()
         self.assertIn('if [[ -w "$PROJECT_DIR" ]]', launcher)
         self.assertIn(
@@ -96,7 +97,9 @@ class MultidatasetMatrixTests(unittest.TestCase):
         self.assertIn("#SBATCH --partition=gpu_30d_p", worker)
         self.assertIn("#SBATCH --gres=gpu:H100:1", worker)
         self.assertIn("MATRIX_ROW+=MATRIX_WORKERS", worker)
-        self.assertIn("slurm/slurm_multidataset_worker.sh", submitter)
+        self.assertIn("slurm/slurm_submit_matrix_stage.sh", submitter)
+        self.assertIn("slurm/slurm_multidataset_worker.sh", matrix_submitter)
+        self.assertIn('--dependency="afterok:$MATRIX_JOB"', matrix_submitter)
         self.assertIn('MATRIX_WORKERS=${MATRIX_WORKERS:-5}', submitter)
         self.assertIn('if ! submission=$(sbatch --parsable "$@"); then', submitter)
         self.assertIn("chmod -R a-w", submitter)
@@ -106,7 +109,6 @@ class MultidatasetMatrixTests(unittest.TestCase):
         self.assertIn("module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1", submitter)
         self.assertEqual(submitter.count('"$VENV_DIR/bin/python"'), 5)
         self.assertNotIn(" SOURCE_SNAPSHOT_ID=\"$SOURCE_SNAPSHOT_ID\" python", submitter)
-        self.assertIn('--dependency="afterok:$MATRIX_JOB"', submitter)
         self.assertIn("#SBATCH --partition=batch", submitter)
         self.assertIn('if [[ -z "${SLURM_JOB_ID:-}" ]]', submitter)
         self.assertIn("Submit this coordinator with sbatch", submitter)

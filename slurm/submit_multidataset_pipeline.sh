@@ -143,23 +143,18 @@ if (( MATRIX_WORKERS < 1 || MATRIX_WORKERS > 5 )); then
     echo "ERROR: MATRIX_WORKERS must be between 1 and 5." >&2
     exit 2
 fi
-MATRIX_JOB=$(submit_job \
+MATRIX_STAGE_JOB=$(submit_job \
     --dependency="afterok:$VALIDATION_JOB:$GATE_JOB" \
-    --array="0-$((MATRIX_WORKERS - 1))%$MATRIX_WORKERS" \
     --export="$EXPORTS,RUN_COUNT=$RUN_COUNT,MATRIX_WORKERS=$MATRIX_WORKERS" \
-    "$SNAPSHOT_DIR/slurm/slurm_multidataset_worker.sh")
-ANALYSIS_JOB=$(submit_job \
-    --dependency="afterok:$MATRIX_JOB" \
-    --export="$EXPORTS" \
-    "$SNAPSHOT_DIR/slurm/slurm_multidataset_analysis.sh")
+    "$SNAPSHOT_DIR/slurm/slurm_submit_matrix_stage.sh")
 
 WORKFLOW_DIR="$SCRATCH_DIR/workflows/$SOURCE_SNAPSHOT_ID"
 mkdir -p "$WORKFLOW_DIR"
 TEST_JOB="$TEST_JOB" REFERENCE_JOB="$REFERENCE_JOB" VALIDATION_JOB="$VALIDATION_JOB" \
 SMOKE_JOB="$SMOKE_JOB" OVERFIT_JOB="$OVERFIT_JOB" GATE_JOB="$GATE_JOB" \
-MATRIX_JOB="$MATRIX_JOB" ANALYSIS_JOB="$ANALYSIS_JOB" \
+MATRIX_STAGE_JOB="$MATRIX_STAGE_JOB" \
     SOURCE_SNAPSHOT_ID="$SOURCE_SNAPSHOT_ID" SNAPSHOT_DIR="$SNAPSHOT_DIR" \
-    "$VENV_DIR/bin/python" - "$WORKFLOW_DIR/submission_${MATRIX_JOB}.json" <<'PY'
+    "$VENV_DIR/bin/python" - "$WORKFLOW_DIR/submission_${MATRIX_STAGE_JOB}.json" <<'PY'
 import json
 import os
 from datetime import datetime, timezone
@@ -178,8 +173,7 @@ record = {
     "numerical_smoke_job_id": os.environ["SMOKE_JOB"],
     "overfit_job_id": os.environ["OVERFIT_JOB"],
     "gate_manifest_job_id": os.environ["GATE_JOB"],
-    "matrix_job_id": os.environ["MATRIX_JOB"],
-    "analysis_job_id": os.environ["ANALYSIS_JOB"],
+    "matrix_stage_job_id": os.environ["MATRIX_STAGE_JOB"],
 }
 path = Path(sys.argv[1])
 with path.open("x", encoding="utf-8") as handle:
@@ -196,5 +190,4 @@ echo "Data validation: $VALIDATION_JOB"
 echo "Numerical smoke: $SMOKE_JOB"
 echo "Overfit gate:    $OVERFIT_JOB"
 echo "Gate manifest:   $GATE_JOB"
-echo "Matrix job:     $MATRIX_JOB"
-echo "Analysis job:   $ANALYSIS_JOB (afterok:$MATRIX_JOB)"
+echo "Matrix stage:    $MATRIX_STAGE_JOB (submits five H100 workers after gates)"
