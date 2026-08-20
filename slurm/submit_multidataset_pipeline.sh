@@ -63,14 +63,14 @@ if [[ ! -d "$SNAPSHOT_DIR" ]]; then
     TEMP_SNAPSHOT="$SNAPSHOT_ROOT/.${SOURCE_SNAPSHOT_ID}.$$"
     mkdir -p "$TEMP_SNAPSHOT"
     rsync -a \
-        --exclude=.git \
-        --exclude=.venv \
-        --exclude=venv \
-        --exclude=data \
-        --exclude=checkpoints \
-        --exclude=experiments \
-        --exclude=logs \
-        --exclude=results \
+        --exclude=/.git \
+        --exclude=/.venv \
+        --exclude=/venv \
+        --exclude=/data \
+        --exclude=/checkpoints \
+        --exclude=/experiments \
+        --exclude=/logs \
+        --exclude=/results \
         "$PROJECT_DIR/" "$TEMP_SNAPSHOT/"
     SOURCE_REVISION="$SOURCE_REVISION" SOURCE_STATE_HASH="$SOURCE_STATE_HASH" \
         SOURCE_SNAPSHOT_ID="$SOURCE_SNAPSHOT_ID" "$VENV_DIR/bin/python" - \
