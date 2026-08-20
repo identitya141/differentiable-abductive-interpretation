@@ -113,6 +113,21 @@ class MultidatasetMatrixTests(unittest.TestCase):
         self.assertIn('if [[ -z "${SLURM_JOB_ID:-}" ]]', submitter)
         self.assertIn("Submit this coordinator with sbatch", submitter)
         self.assertNotIn("Run this submitter on a Sapelo login node", submitter)
+        for script_name in (
+            "slurm_test_suite.sh",
+            "slurm_reference_equivalence.sh",
+            "slurm_validate_publication_datasets.sh",
+            "slurm_numerical_smoke.sh",
+            "slurm_small_overfit.sh",
+            "slurm_prepare_publication_gates.sh",
+            "slurm_multidataset_matrix.sh",
+            "slurm_multidataset_analysis.sh",
+        ):
+            self.assertIn(
+                "PYTHONNOUSERSITE=1",
+                (ROOT / "slurm" / script_name).read_text(),
+                script_name,
+            )
 
     def test_every_setting_has_eleven_baselines_and_proposed_method(self):
         by_setting = {}

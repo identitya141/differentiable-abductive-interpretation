@@ -9,11 +9,19 @@
 #SBATCH --error=logs/publication_gate_manifest_%j.err
 
 set -euo pipefail
+export PYTHONNOUSERSITE=1
 
 REFERENCE_SOURCE=${REFERENCE_SOURCE:?REFERENCE_SOURCE is required}
 OVERFIT_SOURCE=${OVERFIT_SOURCE:?OVERFIT_SOURCE is required}
+PROJECT_DIR=${PROJECT_DIR:?PROJECT_DIR is required}
 SCRATCH_DIR=${SCRATCH_DIR:-"/scratch/$USER/dai-research"}
+VENV_DIR=${VENV_DIR:-"$HOME/dai-research/venv"}
 OUTPUT_DIR=${GATE_DIR:-"$SCRATCH_DIR/results/publication_gates"}
+
+module purge
+module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
+source "$VENV_DIR/bin/activate"
+cd "$PROJECT_DIR"
 
 mkdir -p "$OUTPUT_DIR"
 cp "$REFERENCE_SOURCE" "$OUTPUT_DIR/reference_equivalence.json"

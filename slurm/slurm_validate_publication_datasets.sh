@@ -18,6 +18,7 @@ OUTPUT_DIR=${VALIDATION_DIR:-"$SCRATCH_DIR/results/publication_validations"}
 module purge
 module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
 source "$VENV_DIR/bin/activate"
+export PYTHONNOUSERSITE=1
 cd "$PROJECT_DIR"
 mkdir -p "$OUTPUT_DIR"
 

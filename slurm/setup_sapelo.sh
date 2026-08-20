@@ -57,6 +57,8 @@ fi
 echo ""
 echo "Step 4: Activating virtual environment and installing dependencies..."
 source "$VENV_DIR/bin/activate"
+# Never allow packages from ~/.local to satisfy this reproducible environment.
+export PYTHONNOUSERSITE=1
 
 # Upgrade pip
 pip install --upgrade pip setuptools wheel
@@ -68,6 +70,7 @@ grep -Ev '^(torch|torchvision|torchaudio)==' \
     "$PROJECT_DIR/requirements.txt" > "$SCRATCH_DIR/requirements-sapelo.txt"
 pip install -r "$SCRATCH_DIR/requirements-sapelo.txt"
 pip install -r "$PROJECT_DIR/requirements-test.txt"
+pip check
 
 # Install project in editable mode
 if [ -f "$PROJECT_DIR/setup.py" ] || [ -f "$PROJECT_DIR/pyproject.toml" ]; then
@@ -82,6 +85,7 @@ python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 python -c "import torch; print(f'CUDA version: {torch.version.cuda}')"
 python -c "import transformers; print(f'Transformers version: {transformers.__version__}')"
 python -c "import datasets; print(f'Datasets version: {datasets.__version__}')"
+python -c "import coverage, iniconfig, matplotlib, pytest, safetensors; print('Isolated dependency imports: OK')"
 
 echo ""
 echo "=================================================="
