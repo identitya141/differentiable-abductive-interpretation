@@ -59,6 +59,7 @@ echo "Step 4: Activating virtual environment and installing dependencies..."
 source "$VENV_DIR/bin/activate"
 # Never allow packages from ~/.local to satisfy this reproducible environment.
 export PYTHONNOUSERSITE=1
+export PYTHONPATH="$VENV_DIR/lib/python3.11/site-packages:$PROJECT_DIR"
 
 # Upgrade pip
 pip install --upgrade pip setuptools wheel
@@ -69,8 +70,7 @@ echo "Installing pinned non-PyTorch dependencies..."
 grep -Ev '^(torch|torchvision|torchaudio)==' \
     "$PROJECT_DIR/requirements.txt" > "$SCRATCH_DIR/requirements-sapelo.txt"
 pip install -r "$SCRATCH_DIR/requirements-sapelo.txt"
-pip install -r "$PROJECT_DIR/requirements-test.txt"
-pip check
+pip install --ignore-installed --no-deps -r "$PROJECT_DIR/requirements-test.txt"
 
 # Install project in editable mode
 if [ -f "$PROJECT_DIR/setup.py" ] || [ -f "$PROJECT_DIR/pyproject.toml" ]; then
@@ -85,7 +85,23 @@ python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 python -c "import torch; print(f'CUDA version: {torch.version.cuda}')"
 python -c "import transformers; print(f'Transformers version: {transformers.__version__}')"
 python -c "import datasets; print(f'Datasets version: {datasets.__version__}')"
-python -c "import coverage, iniconfig, matplotlib, pytest, safetensors; print('Isolated dependency imports: OK')"
+python - <<'PY'
+import coverage, datasets, iniconfig, matplotlib, numpy, packaging
+import pluggy, pytest, safetensors, scipy, torch, transformers
+expected = {
+    "numpy": (numpy.__version__, "1.26.3"),
+    "scipy": (scipy.__version__, "1.12.0"),
+    "packaging": (packaging.__version__, "24.2"),
+    "pluggy": (pluggy.__version__, "1.5.0"),
+    "pytest": (pytest.__version__, "8.3.5"),
+    "safetensors": (safetensors.__version__, "0.4.1"),
+    "transformers": (transformers.__version__, "4.36.2"),
+}
+for name, (actual, required) in expected.items():
+    if actual != required:
+        raise SystemExit(f"{name}: expected {required}, found {actual}")
+print("Isolated dependency imports and versions: OK")
+PY
 
 echo ""
 echo "=================================================="

@@ -33,6 +33,7 @@ module purge
 module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
 source "$VENV_DIR/bin/activate"
 export PYTHONNOUSERSITE=1
+export PYTHONPATH="$VENV_DIR/lib/python3.11/site-packages:$PROJECT_DIR"
 
 cd "$PROJECT_DIR"
 echo "Coordinator job: $SLURM_JOB_ID on $SLURM_NODELIST"
