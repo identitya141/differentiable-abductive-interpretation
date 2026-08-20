@@ -59,7 +59,7 @@ echo "Step 4: Activating virtual environment and installing dependencies..."
 source "$VENV_DIR/bin/activate"
 # Never allow packages from ~/.local to satisfy this reproducible environment.
 export PYTHONNOUSERSITE=1
-export PYTHONPATH="$VENV_DIR/lib/python3.11/site-packages:$PROJECT_DIR"
+export PYTHONPATH="$VENV_DIR/lib/python3.11/site-packages:$PROJECT_DIR${PYTHONPATH:+:$PYTHONPATH}"
 
 # Upgrade pip
 pip install --upgrade pip setuptools wheel

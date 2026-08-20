@@ -44,7 +44,7 @@ module purge
 module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
 source "$VENV_DIR/bin/activate"
 export PYTHONNOUSERSITE=1
-export PYTHONPATH="$VENV_DIR/lib/python3.11/site-packages:$PROJECT_DIR"
+export PYTHONPATH="$VENV_DIR/lib/python3.11/site-packages:$PROJECT_DIR${PYTHONPATH:+:$PYTHONPATH}"
 cd "$PROJECT_DIR"
 
 if [[ ! -s "$GATE_DIR/SHA256SUMS" || ! -s "$VALIDATION_DIR/SHA256SUMS" ]]; then

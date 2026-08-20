@@ -45,7 +45,7 @@ module purge
 module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
 source "$VENV_DIR/bin/activate"
 export PYTHONNOUSERSITE=1
-export PYTHONPATH="$VENV_DIR/lib/python3.11/site-packages:$PROJECT_DIR"
+export PYTHONPATH="$VENV_DIR/lib/python3.11/site-packages:$PROJECT_DIR${PYTHONPATH:+:$PYTHONPATH}"
 
 export CUBLAS_WORKSPACE_CONFIG=:4096:8
 export HF_HOME="$HF_CACHE_DIR"

@@ -35,7 +35,7 @@ export PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
 export PROJECT_DIR VENV_DIR
 
 cd "$PROJECT_DIR"
-export PYTHONPATH="$VENV_DIR/lib/python3.11/site-packages:$PROJECT_DIR"
+export PYTHONPATH="$VENV_DIR/lib/python3.11/site-packages:$PROJECT_DIR${PYTHONPATH:+:$PYTHONPATH}"
 read -ra TEST_PATH_ARGS <<< "${TEST_PATHS:-tests}"
 "$VENV_DIR/bin/python" -m pytest "${TEST_PATH_ARGS[@]}" -q \
     -o "cache_dir=$JOB_TMP_DIR/pytest-cache" \

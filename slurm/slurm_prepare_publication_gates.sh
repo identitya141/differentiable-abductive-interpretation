@@ -21,7 +21,7 @@ OUTPUT_DIR=${GATE_DIR:-"$SCRATCH_DIR/results/publication_gates"}
 module purge
 module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
 source "$VENV_DIR/bin/activate"
-export PYTHONPATH="$VENV_DIR/lib/python3.11/site-packages:$PROJECT_DIR"
+export PYTHONPATH="$VENV_DIR/lib/python3.11/site-packages:$PROJECT_DIR${PYTHONPATH:+:$PYTHONPATH}"
 cd "$PROJECT_DIR"
 
 mkdir -p "$OUTPUT_DIR"
