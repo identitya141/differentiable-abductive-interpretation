@@ -6,8 +6,10 @@ import unittest
 from pathlib import Path
 
 from src.models.baselines import linearize_source_only_tree
+from scripts.validate_publication_transformations import _transformed_text
 from src.utils.benchmark_contract import (
     apply_benchmark_contract,
+    get_baseline_contract,
     get_benchmark_contract,
     paired_holdout_indices,
 )
@@ -47,6 +49,30 @@ class BenchmarkContractTests(unittest.TestCase):
         self.assertEqual(config.data.eval_num_workers, 0)
         self.assertEqual(contract.data_split_seed, 42)
 
+    def test_transformed_baselines_get_measured_no_truncation_ceilings(self):
+        expected_tree_sources = {
+            "scan": 128,
+            "cogs": 512,
+            "slog": 512,
+            "cfq": 256,
+        }
+        for dataset, source_length in expected_tree_sources.items():
+            with self.subTest(dataset=dataset):
+                transformed = get_baseline_contract(
+                    dataset, "tree_linearized_t5"
+                )
+                raw = get_benchmark_contract(dataset)
+                self.assertEqual(transformed.max_source_length, source_length)
+                self.assertEqual(
+                    transformed.max_target_length, raw.max_target_length
+                )
+
+        tinyllama = get_baseline_contract("scan", "tinyllama_lora")
+        self.assertEqual(
+            (tinyllama.max_source_length, tinyllama.max_target_length),
+            (64, 320),
+        )
+
     def test_paired_holdout_indices_are_runner_independent(self):
         first = paired_holdout_indices(101, 0.1, 42)
         second = paired_holdout_indices(101, 0.1, 42)
@@ -61,6 +87,18 @@ class BenchmarkContractTests(unittest.TestCase):
         tree = linearize_source_only_tree("a student liked the book")
         self.assertIn("<TREE>", tree)
         self.assertIn("( SEQ", tree)
+
+    def test_unannotated_reasoning_baselines_do_not_copy_gold_into_a_trace(self):
+        target = "I_WALK I_JUMP"
+        _, cot_target = _transformed_text("cot", "scan", "walk and jump", target)
+        _, scratch_target = _transformed_text(
+            "scratchpad", "scan", "walk and jump", target
+        )
+
+        self.assertEqual(cot_target, f"Therefore, the answer is: {target}")
+        self.assertEqual(scratch_target, f"[/SCRATCH] {target}")
+        self.assertNotIn("step 1:", cot_target)
+        self.assertNotIn("step 1:", scratch_target)
 
     def test_dai_runner_reloads_validation_best_before_final_test(self):
         source = Path("scripts/train.py").read_text(encoding="utf-8")

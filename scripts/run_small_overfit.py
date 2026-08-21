@@ -15,7 +15,7 @@ from transformers import T5Tokenizer
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scripts.train import create_model, get_data_module
-from src.evaluation.metrics import evaluate_model
+from src.evaluation.metrics import CompositionalMetrics, evaluate_model
 from src.evaluation.overfit_gate import evaluate_overfit_gate
 from src.training.trainer import DAITrainer, TrainingConfig
 from src.utils.config import load_config
@@ -60,7 +60,8 @@ def _training_config(config, output_dir: Path, seed: int) -> TrainingConfig:
         abstraction_backoff_enabled=config.abstraction.backoff_enabled,
         abstraction_backoff_trigger_count=config.abstraction.backoff_trigger_count,
         abstraction_backoff_steps=config.abstraction.backoff_steps,
-        eval_strategy="no",
+        eval_strategy=config.eval_strategy,
+        eval_steps=250,
         save_strategy="best",
         logging_steps=config.logging_steps,
         output_dir=str(output_dir),
@@ -135,14 +136,22 @@ def run_gate(args) -> dict:
     model = create_model(config)
     model.resize_token_embeddings(len(tokenizer))
     disabled_dropout_modules = _disable_dropout(model)
+    periodic_metrics = CompositionalMetrics(tokenizer=tokenizer, dataset_type="scan")
     trainer = DAITrainer(
         model=model,
         config=_training_config(config, args.output_dir, args.seed),
         train_dataloader=train_loader,
-        eval_dataloader=None,
+        eval_dataloader=evaluation_loader,
+        compute_metrics=lambda predictions, labels: {
+            "exact_match": periodic_metrics.compute(predictions, labels).exact_match
+        },
         tokenizer=tokenizer,
     )
     training_results = trainer.train()
+    best_checkpoint = trainer.config.output_path / "checkpoints" / "best" / "model.pt"
+    if not best_checkpoint.is_file():
+        raise RuntimeError("Periodic evaluation did not produce a best checkpoint")
+    model.load_state_dict(torch.load(best_checkpoint, map_location=trainer.device))
     training_evaluation = evaluate_model(
         model=model,
         dataloader=evaluation_loader,
@@ -168,6 +177,8 @@ def run_gate(args) -> dict:
             "config": str(args.config),
             "data_dir": str(args.data_dir),
             "disabled_dropout_modules": disabled_dropout_modules,
+            "evaluated_checkpoint": str(best_checkpoint),
+            "best_periodic_exact_match": training_results["best_metric"],
             "prediction_samples": [
                 {
                     "input": input_text,

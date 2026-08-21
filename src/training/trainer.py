@@ -455,36 +455,7 @@ class DAITrainer:
             
             # Evaluation
             if self.config.eval_strategy == "epoch" and self.eval_dataloader is not None:
-                eval_results = self.evaluate()
-                self.eval_log.append({"epoch": epoch, **eval_results})
-                
-                # Check for improvement - prefer exact_match, then accuracy, then loss
-                # Use explicit key tracking for debugging
-                if "exact_match" in eval_results:
-                    metric = eval_results["exact_match"]
-                    metric_key = "exact_match"
-                elif "accuracy" in eval_results:
-                    metric = eval_results["accuracy"]
-                    metric_key = "accuracy"
-                else:
-                    metric = eval_results.get("loss", 0)
-                    metric_key = "loss"
-                
-                if metric > self.state.best_metric:
-                    logger.info(
-                        f"New best model at epoch {epoch}! "
-                        f"{metric_key}={metric:.4f} > prev_best={self.state.best_metric:.4f}"
-                    )
-                    self.state.best_metric = metric
-                    self.state.best_epoch = epoch
-                    self.state.epochs_without_improvement = 0
-                    self._save_checkpoint("best")
-                else:
-                    self.state.epochs_without_improvement += 1
-                    logger.debug(
-                        f"No improvement at epoch {epoch}: "
-                        f"{metric_key}={metric:.4f} <= best={self.state.best_metric:.4f}"
-                    )
+                self._evaluate_and_track_best(epoch=epoch)
                 
                 # Early stopping
                 if (self.config.early_stopping_patience is not None and
@@ -894,12 +865,59 @@ class DAITrainer:
                 if (self.config.save_strategy == "steps" and
                     self.state.global_step % self.config.save_steps == 0):
                     self._save_checkpoint(f"step_{self.state.global_step}")
+
+                if (
+                    self.config.eval_strategy == "steps"
+                    and self.eval_dataloader is not None
+                    and self.config.eval_steps > 0
+                    and self.state.global_step % self.config.eval_steps == 0
+                ):
+                    self._evaluate_and_track_best(
+                        epoch=epoch, global_step=self.state.global_step
+                    )
                 
                 # Check max steps
                 if (self.config.max_steps is not None and
                     self.state.global_step >= self.config.max_steps):
                     break
     
+    def _evaluate_and_track_best(
+        self, epoch: int, global_step: Optional[int] = None
+    ) -> Dict[str, float]:
+        """Evaluate, persist the best generated metric, and return results."""
+        eval_results = self.evaluate()
+        log_row = {"epoch": epoch, **eval_results}
+        if global_step is not None:
+            log_row["global_step"] = global_step
+        self.eval_log.append(log_row)
+
+        if "exact_match" in eval_results:
+            metric = eval_results["exact_match"]
+            metric_key = "exact_match"
+        elif "accuracy" in eval_results:
+            metric = eval_results["accuracy"]
+            metric_key = "accuracy"
+        else:
+            metric = -eval_results.get("loss", float("inf"))
+            metric_key = "negative_loss"
+
+        if metric > self.state.best_metric:
+            logger.info(
+                "New best model at epoch %s, step %s: %s=%.4f > prev_best=%.4f",
+                epoch,
+                self.state.global_step,
+                metric_key,
+                metric,
+                self.state.best_metric,
+            )
+            self.state.best_metric = metric
+            self.state.best_epoch = epoch
+            self.state.epochs_without_improvement = 0
+            self._save_checkpoint("best")
+        else:
+            self.state.epochs_without_improvement += 1
+        return eval_results
+
     def evaluate(self) -> Dict[str, float]:
         """
         Evaluate model on eval_dataloader.

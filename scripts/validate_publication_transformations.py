@@ -15,9 +15,14 @@ from src.data.scan_dataset import SCANDataset
 from src.data.cogs_dataset import COGSDataset
 from src.data.slog_dataset import SLOGDataset
 from src.data.cfq_dataset import CFQDataset
-from src.utils.benchmark_contract import get_benchmark_contract
+from src.utils.benchmark_contract import get_baseline_contract, get_benchmark_contract
 from src.utils.tokenizer_utils import extend_tokenizer_for_dataset
-from src.models.baselines import BASELINE_REGISTRY, linearize_source_only_tree
+from src.models.baselines import (
+    BASELINE_REGISTRY,
+    ChainOfThoughtT5,
+    ScratchpadT5,
+    linearize_source_only_tree,
+)
 from src.models.baselines.baseline_models import TinyLlamaBaseline
 from src.data.scan_composition import linearize_scan_command
 
@@ -26,8 +31,7 @@ def _reasoning_and_answer(target):
     if "####" in target:
         reasoning, answer = target.rsplit("####", 1)
         return reasoning.strip(), answer.strip()
-    tokens = target.split()
-    return " ; ".join(f"step {i}: {token}" for i, token in enumerate(tokens, 1)) or "direct", target
+    return "", target
 
 
 def _transformed_text(method, dataset_name, source, target):
@@ -35,12 +39,14 @@ def _transformed_text(method, dataset_name, source, target):
         source = linearize_scan_command(source) if dataset_name == "scan" else linearize_source_only_tree(source)
     elif method == "cot":
         reasoning, answer = _reasoning_and_answer(target)
-        source = "Let's think step by step. " + source
-        target = f"{reasoning} Therefore, the answer is: {answer}"
+        source = ChainOfThoughtT5.COT_PREFIX + source
+        prefix = f"{reasoning} " if reasoning else ""
+        target = f"{prefix}{ChainOfThoughtT5.COT_ANSWER_MARKER}{answer}"
     elif method == "scratchpad":
         reasoning, answer = _reasoning_and_answer(target)
-        source = f"{source} <scratch>"
-        target = f"{reasoning} </scratch> {answer}"
+        source = f"{source} {ScratchpadT5.SCRATCH_START}"
+        prefix = f"{reasoning} " if reasoning else ""
+        target = f"{prefix}{ScratchpadT5.SCRATCH_END} {answer}"
     elif method == "tinyllama_lora":
         instruction = TinyLlamaBaseline.DATASET_INSTRUCTIONS[dataset_name]
         source = TinyLlamaBaseline.INSTRUCTION_TEMPLATE.format(
@@ -54,6 +60,9 @@ def summarize_baseline_transformations(datasets, dataset_name, contract, t5_mode
     examples = [example for dataset in datasets for example in dataset.examples]
     transformation_cache = {}
     for method in BASELINE_REGISTRY:
+        method_contract = get_baseline_contract(
+            dataset_name, method, contract.split
+        )
         transform_key = method if method in {
             "tree_linearized_t5", "cot", "scratchpad", "tinyllama_lora"
         } else "unmodified"
@@ -69,7 +78,7 @@ def summarize_baseline_transformations(datasets, dataset_name, contract, t5_mode
             tokenizer, _ = extend_tokenizer_for_dataset(tokenizer, dataset_name, verbose=False)
             if method == "scratchpad":
                 tokenizer.add_special_tokens(
-                    {"additional_special_tokens": ["<scratch>", "</scratch>"]}
+                    {"additional_special_tokens": ScratchpadT5.SPECIAL_TOKENS}
                 )
         transformed = [
             _transformed_text(method, dataset_name, row.input_text, row.target_text)
@@ -93,11 +102,13 @@ def summarize_baseline_transformations(datasets, dataset_name, contract, t5_mode
             "max_target_tokens": max(target_lengths),
             "p99_source_tokens": source_sorted[percentile_index],
             "p99_target_tokens": target_sorted[percentile_index],
+            "contract_max_source_length": method_contract.max_source_length,
+            "contract_max_target_length": method_contract.max_target_length,
             "sources_exceeding_contract": sum(
-                length > contract.max_source_length for length in source_lengths
+                length > method_contract.max_source_length for length in source_lengths
             ),
             "targets_exceeding_contract": sum(
-                length > contract.max_target_length for length in target_lengths
+                length > method_contract.max_target_length for length in target_lengths
             ),
         }
         transformation_cache[transform_key] = summary

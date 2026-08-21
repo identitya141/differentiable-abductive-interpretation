@@ -218,8 +218,9 @@ class ChainOfThoughtT5(BaselineModel):
     
     Implementation:
     - Training: Prepend "Let's think step by step." to inputs
-    - Targets include intermediate reasoning (if available)
-    - For datasets without CoT annotations, we use template-based CoT
+    - Targets include intermediate reasoning only when supplied by the dataset
+    - Datasets without rationale annotations use an empty reasoning region;
+      gold answers are never copied into fabricated traces
     
     Expected Behavior:
     - Better on multi-step reasoning (GSM8K)
@@ -294,7 +295,8 @@ class ChainOfThoughtT5(BaselineModel):
         Returns:
             Formatted target string
         """
-        return f"{reasoning} {self.COT_ANSWER_MARKER}{answer}"
+        prefix = f"{reasoning} " if reasoning else ""
+        return f"{prefix}{self.COT_ANSWER_MARKER}{answer}"
     
     def forward(
         self,
@@ -397,7 +399,8 @@ class ScratchpadT5(BaselineModel):
     Implementation:
     - Input format: "<input> [SCRATCH]"
     - Output format: "<scratchpad contents> [/SCRATCH] <answer>"
-    - Model learns to use scratchpad for intermediate steps
+    - Model learns supplied scratchpad steps when the dataset contains them;
+      otherwise the marked scratchpad is empty
     
     Expected Behavior:
     - Better on multi-step arithmetic
@@ -489,7 +492,8 @@ class ScratchpadT5(BaselineModel):
     
     def format_target(self, scratchpad: str, answer: str) -> str:
         """Format target with scratchpad."""
-        return f"{scratchpad} {self.SCRATCH_END} {answer}"
+        prefix = f"{scratchpad} " if scratchpad else ""
+        return f"{prefix}{self.SCRATCH_END} {answer}"
     
     def forward(
         self,

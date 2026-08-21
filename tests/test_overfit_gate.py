@@ -53,17 +53,19 @@ class OverfitGateTests(unittest.TestCase):
     def test_config_is_bounded_and_uses_full_structural_objective(self):
         config = load_config("configs/experiments/scan_small_overfit.json")
 
-        self.assertEqual(config.training.max_steps, 3000)
-        self.assertEqual(config.training.lr_scheduler, "constant")
+        self.assertEqual(config.training.max_steps, 6000)
+        self.assertEqual(config.training.lr_scheduler, "linear")
         self.assertTrue(config.training.fp16)
         self.assertEqual(config.training.fp16_initial_scale, 1024.0)
         self.assertGreater(config.abstraction.structural_contrastive_weight, 0.0)
-        self.assertEqual(config.eval_strategy, "no")
+        self.assertEqual(config.eval_strategy, "steps")
         self.assertEqual(config.save_strategy, "best")
         trainer_config = _training_config(config, Path("test-output"), seed=42)
         self.assertTrue(trainer_config.abstraction_use_step_schedule)
         self.assertEqual(trainer_config.abstraction_warmup_steps, 50)
         self.assertEqual(trainer_config.abstraction_ramp_steps, 100)
+        self.assertEqual(trainer_config.eval_strategy, "steps")
+        self.assertEqual(trainer_config.eval_steps, 250)
 
     def test_constant_scheduler_uses_optimizer_learning_rate(self):
         trainer = DAITrainer.__new__(DAITrainer)

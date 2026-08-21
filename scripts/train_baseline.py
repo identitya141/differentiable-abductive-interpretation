@@ -65,7 +65,7 @@ from src.models.baselines import (
 from src.evaluation.compositional_metrics import CompositionParser
 from src.evaluation.metrics import normalize_batch_for_eval, normalize_for_eval
 from src.utils.reproducibility import set_seed
-from src.utils.benchmark_contract import get_benchmark_contract, paired_holdout_indices
+from src.utils.benchmark_contract import get_baseline_contract, paired_holdout_indices
 from src.utils.tokenizer_utils import (
     extend_tokenizer_for_dataset,
     resize_with_deterministic_added_token_init,
@@ -362,15 +362,11 @@ def load_baseline_dataset(
         return list(inputs), list(targets)
 
     def reasoning_and_answer(target: str):
-        """Use supplied rationales when present; otherwise make the trace explicit."""
+        """Use supplied rationales without fabricating supervision from the answer."""
         if "####" in target:
             reasoning, answer = target.rsplit("####", 1)
             return reasoning.strip(), answer.strip()
-        tokens = target.split()
-        trace = " ; ".join(
-            f"step {i}: {token}" for i, token in enumerate(tokens, start=1)
-        )
-        return trace or "direct", target
+        return "", target
 
     def tokenize_function(examples):
         inputs, targets = raw_text(examples)
@@ -643,7 +639,7 @@ def train_baseline(
     
     baseline_type = canonical_baseline_name(baseline_type)
 
-    contract = get_benchmark_contract(dataset_name, split)
+    contract = get_baseline_contract(dataset_name, baseline_type, split)
     max_source_length = contract.max_source_length
     max_target_length = contract.max_target_length
     batch_size = contract.train_batch_size
