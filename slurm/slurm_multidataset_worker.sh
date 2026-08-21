@@ -6,16 +6,16 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=64G
 #SBATCH --time=14-00:00:00
-#SBATCH --array=0-4%5
+#SBATCH --array=0-1%2
 #SBATCH --output=logs/multidataset_worker_%A_%a.out
 #SBATCH --error=logs/multidataset_worker_%A_%a.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=adetayo@uga.edu
 
 # Keep the number of submitted GPU jobs within Sapelo's per-user QOS limit.
-# Each of five H100 workers owns a deterministic strided subset of the 720
+# Each of two H100 workers owns a deterministic strided subset of the 720
 # independently checkpointed matrix rows. Re-submission skips completed rows
-# and resumes compatible partial rows.
+# and resumes compatible partial rows. Two is the gpu_30d_qos per-user maximum.
 
 set -euo pipefail
 

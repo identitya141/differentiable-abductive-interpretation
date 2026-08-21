@@ -140,9 +140,9 @@ OVERFIT_SOURCE="$SCRATCH_DIR/results/gates/small_overfit_${OVERFIT_JOB}.json"
 GATE_JOB=$(submit_job --dependency="afterok:$REFERENCE_JOB:$OVERFIT_JOB" \
     --export="$EXPORTS,REFERENCE_SOURCE=$REFERENCE_SOURCE,OVERFIT_SOURCE=$OVERFIT_SOURCE" \
     "$SNAPSHOT_DIR/slurm/slurm_prepare_publication_gates.sh")
-MATRIX_WORKERS=${MATRIX_WORKERS:-5}
-if (( MATRIX_WORKERS < 1 || MATRIX_WORKERS > 5 )); then
-    echo "ERROR: MATRIX_WORKERS must be between 1 and 5." >&2
+MATRIX_WORKERS=${MATRIX_WORKERS:-2}
+if (( MATRIX_WORKERS < 1 || MATRIX_WORKERS > 2 )); then
+    echo "ERROR: MATRIX_WORKERS must be between 1 and 2 for gpu_30d_qos." >&2
     exit 2
 fi
 MATRIX_STAGE_JOB=$(submit_job \
@@ -192,4 +192,4 @@ echo "Data validation: $VALIDATION_JOB"
 echo "Numerical smoke: $SMOKE_JOB"
 echo "Overfit gate:    $OVERFIT_JOB"
 echo "Gate manifest:   $GATE_JOB"
-echo "Matrix stage:    $MATRIX_STAGE_JOB (submits five H100 workers after gates)"
+echo "Matrix stage:    $MATRIX_STAGE_JOB (submits two 14-day H100 workers after gates)"

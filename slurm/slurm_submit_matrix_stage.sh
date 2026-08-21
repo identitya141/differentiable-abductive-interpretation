@@ -11,8 +11,8 @@
 #SBATCH --mail-user=adetayo@uga.edu
 
 # This second-stage compute-node coordinator runs only after all gates finish.
-# At that point the prerequisite jobs have left the queue, leaving enough QOS
-# capacity for the five-worker H100 array and its dependent analysis job.
+# Sapelo's gpu_30d_qos permits two submitted/running jobs per user, so the
+# long-lived H100 array must contain no more than two tasks.
 
 set -euo pipefail
 
@@ -27,8 +27,8 @@ SCRATCH_DIR=${SCRATCH_DIR:-"/scratch/$USER/dai-research"}
 RUN_COUNT=${RUN_COUNT:?RUN_COUNT is required}
 MATRIX_WORKERS=${MATRIX_WORKERS:?MATRIX_WORKERS is required}
 
-if (( MATRIX_WORKERS < 1 || MATRIX_WORKERS > 5 )); then
-    echo "ERROR: MATRIX_WORKERS must be between 1 and 5." >&2
+if (( MATRIX_WORKERS < 1 || MATRIX_WORKERS > 2 )); then
+    echo "ERROR: MATRIX_WORKERS must be between 1 and 2 for gpu_30d_qos." >&2
     exit 2
 fi
 
