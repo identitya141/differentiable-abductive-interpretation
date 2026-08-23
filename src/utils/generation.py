@@ -362,7 +362,12 @@ def apply_generation_contract(model, dataset_type: str, tokenizer=None) -> dict:
     config = get_generation_config(dataset_type, tokenizer=tokenizer)
     generation_config = model.generation_config
     generation_config.max_new_tokens = config["max_new_tokens"]
-    generation_config.max_length = None
+    # Transformers 4.36's Seq2SeqTrainer still reads ``max_length`` while
+    # padding generated evaluation batches, even when decoding is governed by
+    # ``max_new_tokens``. Leaving it as None crashes at the first evaluation.
+    # Encoder-decoder generation starts with one decoder token, so this legacy
+    # fallback is no tighter than the benchmark's max-new-token contract.
+    generation_config.max_length = config["max_new_tokens"] + 1
     generation_config.min_new_tokens = config["min_new_tokens"]
     generation_config.num_beams = config["num_beams"]
     generation_config.length_penalty = config["length_penalty"]

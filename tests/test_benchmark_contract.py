@@ -2,6 +2,7 @@
 
 import inspect
 import unittest
+from types import SimpleNamespace
 
 from pathlib import Path
 
@@ -14,10 +15,22 @@ from src.utils.benchmark_contract import (
     paired_holdout_indices,
 )
 from src.utils.config import ExperimentConfig
-from src.utils.generation import get_generation_config
+from src.utils.generation import apply_generation_contract, get_generation_config
 
 
 class BenchmarkContractTests(unittest.TestCase):
+    def test_hf_generation_contract_keeps_trainer_compatible_max_length(self):
+        model = SimpleNamespace(generation_config=SimpleNamespace())
+
+        config = apply_generation_contract(model, "scan")
+
+        self.assertEqual(
+            model.generation_config.max_new_tokens, config["max_new_tokens"]
+        )
+        self.assertEqual(
+            model.generation_config.max_length, config["max_new_tokens"] + 1
+        )
+
     def test_dataset_limits_and_decoding_are_shared(self):
         expected = {
             "scan": (64, 128),
