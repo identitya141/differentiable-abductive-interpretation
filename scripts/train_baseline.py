@@ -844,6 +844,12 @@ def train_baseline(
         evaluation_strategy="epoch",  # Fixed: was 'eval_strategy'
         save_strategy="epoch",
         save_total_limit=3,
+        # Baseline wrappers expose tied T5 embeddings under wrapper-prefixed
+        # state-dict keys. Transformers 4.36 cannot infer that aliasing when
+        # serializing with safetensors and crashes at the first checkpoint.
+        # PyTorch serialization preserves the shared tensors correctly and is
+        # used consistently for every baseline handled by this entrypoint.
+        save_safetensors=False,
         load_best_model_at_end=True,
         metric_for_best_model="eval_exact_match",  # Use exact match as primary metric
         greater_is_better=True,  # Higher exact match is better

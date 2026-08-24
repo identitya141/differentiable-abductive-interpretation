@@ -37,6 +37,11 @@ def test_every_baseline_config_constructs_hf_training_arguments():
             assert args.output_dir.endswith(spec.key)
 
 
+def test_shared_baseline_trainer_disables_unsafe_safetensor_checkpoints():
+    source = Path("scripts/train_baseline.py").read_text(encoding="utf-8")
+    assert "save_safetensors=False" in source
+
+
 def test_publication_loader_raises_without_attempting_network_access():
     with tempfile.TemporaryDirectory() as directory, patch(
         "datasets.load_dataset"
