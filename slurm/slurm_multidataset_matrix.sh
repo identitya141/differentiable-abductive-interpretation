@@ -215,7 +215,17 @@ PY
                 OVERRIDE="$OVERRIDE,$METHOD_OVERRIDE"
             fi
             RESUME_ARGS=()
-            LATEST_CHECKPOINT=$(find "$RUN_DIR/checkpoints" -mindepth 1 -maxdepth 1 -type d -name 'epoch_*' -printf '%f\n' 2>/dev/null | sort -t_ -k2,2n | tail -1)
+            # A fresh run has no checkpoints directory.  Do not let find's
+            # expected nonzero status trip `set -euo pipefail` and terminate
+            # the long-lived matrix worker before training starts.
+            LATEST_CHECKPOINT=""
+            if [[ -d "$RUN_DIR/checkpoints" ]]; then
+                LATEST_CHECKPOINT=$(find "$RUN_DIR/checkpoints" \
+                    -mindepth 1 -maxdepth 1 -type d -name 'epoch_*' \
+                    -printf '%f\n' \
+                    | sort -t_ -k2,2n \
+                    | tail -1)
+            fi
             if [[ -n "$LATEST_CHECKPOINT" ]]; then
                 RESUME_ARGS+=(--resume-from-checkpoint "$LATEST_CHECKPOINT")
                 echo "Resuming DAI from $LATEST_CHECKPOINT"

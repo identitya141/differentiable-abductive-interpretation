@@ -91,6 +91,12 @@ class MultidatasetMatrixTests(unittest.TestCase):
         self.assertIn("Existing run contract differs; refusing unsafe resume", launcher)
         self.assertIn("Resuming baseline from newest checkpoint", launcher)
         self.assertIn("Resuming DAI from", launcher)
+        self.assertIn('LATEST_CHECKPOINT=""', launcher)
+        self.assertIn('if [[ -d "$RUN_DIR/checkpoints" ]]', launcher)
+        self.assertNotIn(
+            'LATEST_CHECKPOINT=$(find "$RUN_DIR/checkpoints" -mindepth',
+            launcher,
+        )
         self.assertIn("#SBATCH --partition=gpu_30d_p", launcher)
         self.assertIn("#SBATCH --gres=gpu:H100:1", launcher)
         self.assertIn("#SBATCH --time=14-00:00:00", launcher)
