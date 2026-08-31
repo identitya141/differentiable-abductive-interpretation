@@ -1,3 +1,4 @@
+import inspect
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -96,6 +97,15 @@ def test_proposed_dai_method_is_not_registered_as_a_baseline():
 
     assert "full_contrastive" not in BASELINE_REGISTRY
     assert "dai" not in BASELINE_REGISTRY
+
+
+def test_symbolic_forward_exposes_trainer_dataset_columns():
+    from src.models.baselines import SymbolicRuleAugmentedT5
+
+    parameters = inspect.signature(SymbolicRuleAugmentedT5.forward).parameters
+    assert {
+        "input_ids", "attention_mask", "decoder_input_ids", "labels",
+    } <= set(parameters)
 
 
 def test_dai_save_load_round_trip_is_download_free(tmp_path):

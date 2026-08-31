@@ -891,8 +891,27 @@ class SymbolicRuleAugmentedT5(BaselineModel):
     def name(self) -> str:
         return "Symbolic Rule-Augmented T5"
     
-    def forward(self, **kwargs):
-        return self.t5(**kwargs)
+    def forward(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: Optional[torch.Tensor] = None,
+        decoder_input_ids: Optional[torch.Tensor] = None,
+        labels: Optional[torch.Tensor] = None,
+        **kwargs,
+    ):
+        """Expose T5's training columns to the Hugging Face Trainer.
+
+        Trainer inspects this signature when ``remove_unused_columns`` is
+        enabled.  A catch-all-only signature makes it remove every Arrow
+        column, leaving a zero-row dataset before the first training batch.
+        """
+        return self.t5(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            decoder_input_ids=decoder_input_ids,
+            labels=labels,
+            **kwargs,
+        )
     
     def generate(
         self,
