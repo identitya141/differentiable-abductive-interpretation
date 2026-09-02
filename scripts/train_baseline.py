@@ -85,6 +85,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def sanitize_token_ids_for_decode(token_ids, pad_token_id):
+    """Replace Trainer's negative cross-batch padding before tokenizer decode."""
+    values = np.asarray(token_ids)
+    return np.where(values < 0, pad_token_id, values)
+
+
 def build_prediction_artifact_rows(
     *, metadata_rows, predictions, targets, normalized_predictions,
     normalized_targets, experiment_name, method, dataset_name, split, seed,
@@ -776,7 +782,8 @@ def train_baseline(
         # Decode to strings
         keep_markers = baseline_type == "scratchpad"
         decoded_preds = tokenizer.batch_decode(
-            preds, skip_special_tokens=not keep_markers
+            sanitize_token_ids_for_decode(preds, tokenizer.pad_token_id),
+            skip_special_tokens=not keep_markers,
         )
         decoded_labels = tokenizer.batch_decode(
             labels, skip_special_tokens=not keep_markers
@@ -924,7 +931,8 @@ def train_baseline(
         labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
         keep_markers = baseline_type == "scratchpad"
         decoded_predictions = tokenizer.batch_decode(
-            predictions, skip_special_tokens=not keep_markers
+            sanitize_token_ids_for_decode(predictions, tokenizer.pad_token_id),
+            skip_special_tokens=not keep_markers,
         )
         decoded_targets = tokenizer.batch_decode(
             labels, skip_special_tokens=not keep_markers

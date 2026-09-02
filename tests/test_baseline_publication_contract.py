@@ -13,6 +13,7 @@ from scripts.train_baseline import (
     build_prediction_artifact_rows,
     hf_scheduler_name,
     load_baseline_dataset,
+    sanitize_token_ids_for_decode,
 )
 from src.models.baselines import BASELINE_REGISTRY
 
@@ -40,6 +41,11 @@ def test_every_baseline_config_constructs_hf_training_arguments():
 def test_shared_baseline_trainer_disables_unsafe_safetensor_checkpoints():
     source = Path("scripts/train_baseline.py").read_text(encoding="utf-8")
     assert "save_safetensors=False" in source
+
+
+def test_generated_prediction_padding_is_safe_for_tokenizer_decode():
+    padded = sanitize_token_ids_for_decode([[7, 1, -100], [8, -100, -100]], 0)
+    assert padded.tolist() == [[7, 1, 0], [8, 0, 0]]
 
 
 def test_publication_loader_raises_without_attempting_network_access():
