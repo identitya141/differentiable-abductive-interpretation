@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "seeds": [
+    42,
+    123,
+    456,
+    789,
+    1024,
+    2027,
+    4099,
+    7919,
+    104729,
+    130363
+  ],
+  "n_seeds": 10,
+  "iid_evaluation": {
+    "accuracy": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "n": 10
+    },
+    "exact_match": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "n": 10
+    },
+    "num_correct": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "n": 10
+    },
+    "num_examples": {
+      "mean": 1699.0,
+      "std": 0.0,
+      "min": 1699.0,
+      "max": 1699.0,
+      "n": 10
+    }
+  },
+  "final_evaluation": {
+    "accuracy": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "n": 10
+    },
+    "exact_match": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "n": 10
+    },
+    "generalization_gap": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "n": 10
+    },
+    "num_correct": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "n": 10
+    },
+    "num_examples": {
+      "mean": 3920.0,
+      "std": 0.0,
+      "min": 3920.0,
+      "max": 3920.0,
+      "n": 10
+    },
+    "ood_accuracy": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "n": 10
+    }
+  },
+  "efficiency": {
+    "optimizer_updates": {
+      "mean": 14340.0,
+      "std": 0.0,
+      "min": 14340.0,
+      "max": 14340.0,
+      "n": 10
+    },
+    "examples_seen": {
+      "mean": 458730.0,
+      "std": 0.0,
+      "min": 458730.0,
+      "max": 458730.0,
+      "n": 10
+    },
+    "training_wall_clock_seconds": {
+      "mean": 959.0587153673172,
+      "std": 8.106421422429488,
+      "min": 947.5225608348846,
+      "max": 969.2178173065186,
+      "n": 10
+    },
+    "accelerator_hours": {
+      "mean": 0.2664051987131437,
+      "std": 0.0022517837284526236,
+      "min": 0.26320071134302353,
+      "max": 0.2692271714740329,
+      "n": 10
+    },
+    "peak_cuda_memory_bytes": {
+      "mean": 4813988352.0,
+      "std": 0.0,
+      "min": 4813988352.0,
+      "max": 4813988352.0,
+      "n": 10
+    }
+  },
+  "model_parameters": {
+    "total": 60496384,
+    "trainable": 60496384
+  }
+}

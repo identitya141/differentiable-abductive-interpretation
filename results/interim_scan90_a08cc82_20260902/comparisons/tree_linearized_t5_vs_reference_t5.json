@@ -1,0 +1,166 @@
+{
+  "benchmark": {
+    "dataset": "scan",
+    "split": "length"
+  },
+  "example_level_mcnemar_by_seed": {
+    "1024": {
+      "a_only_correct": 199,
+      "b_only_correct": 65,
+      "discordant": 264,
+      "exact_p_value": 5.563753939471645e-17
+    },
+    "104729": {
+      "a_only_correct": 427,
+      "b_only_correct": 45,
+      "discordant": 472,
+      "exact_p_value": 3.7288707806669924e-79
+    },
+    "123": {
+      "a_only_correct": 225,
+      "b_only_correct": 259,
+      "discordant": 484,
+      "exact_p_value": 0.13353081748231882
+    },
+    "130363": {
+      "a_only_correct": 35,
+      "b_only_correct": 211,
+      "discordant": 246,
+      "exact_p_value": 7.774305641520746e-32
+    },
+    "2027": {
+      "a_only_correct": 54,
+      "b_only_correct": 169,
+      "discordant": 223,
+      "exact_p_value": 5.4853560690877656e-15
+    },
+    "4099": {
+      "a_only_correct": 130,
+      "b_only_correct": 385,
+      "discordant": 515,
+      "exact_p_value": 2.632197760802218e-30
+    },
+    "42": {
+      "a_only_correct": 200,
+      "b_only_correct": 65,
+      "discordant": 265,
+      "exact_p_value": 3.6774368341816244e-17
+    },
+    "456": {
+      "a_only_correct": 278,
+      "b_only_correct": 178,
+      "discordant": 456,
+      "exact_p_value": 3.2592737430342002e-06
+    },
+    "789": {
+      "a_only_correct": 91,
+      "b_only_correct": 206,
+      "discordant": 297,
+      "exact_p_value": 2.1002706789047195e-11
+    },
+    "7919": {
+      "a_only_correct": 319,
+      "b_only_correct": 87,
+      "discordant": 406,
+      "exact_p_value": 3.2886947253946065e-32
+    }
+  },
+  "method_a": "tree_linearized_t5",
+  "method_b": "reference_t5",
+  "paired_seeds": [
+    42,
+    123,
+    456,
+    789,
+    1024,
+    2027,
+    4099,
+    7919,
+    104729,
+    130363
+  ],
+  "per_seed": [
+    {
+      "accuracy_a": 0.09209183673469387,
+      "accuracy_b": 0.05765306122448979,
+      "difference_a_minus_b": 0.03443877551020408,
+      "examples": 3920,
+      "seed": 42
+    },
+    {
+      "accuracy_a": 0.06581632653061224,
+      "accuracy_b": 0.07448979591836735,
+      "difference_a_minus_b": -0.008673469387755109,
+      "examples": 3920,
+      "seed": 123
+    },
+    {
+      "accuracy_a": 0.10943877551020408,
+      "accuracy_b": 0.08392857142857142,
+      "difference_a_minus_b": 0.025510204081632654,
+      "examples": 3920,
+      "seed": 456
+    },
+    {
+      "accuracy_a": 0.04642857142857143,
+      "accuracy_b": 0.07576530612244899,
+      "difference_a_minus_b": -0.029336734693877556,
+      "examples": 3920,
+      "seed": 789
+    },
+    {
+      "accuracy_a": 0.11479591836734694,
+      "accuracy_b": 0.08061224489795918,
+      "difference_a_minus_b": 0.03418367346938776,
+      "examples": 3920,
+      "seed": 1024
+    },
+    {
+      "accuracy_a": 0.06173469387755102,
+      "accuracy_b": 0.09107142857142857,
+      "difference_a_minus_b": -0.02933673469387755,
+      "examples": 3920,
+      "seed": 2027
+    },
+    {
+      "accuracy_a": 0.05127551020408163,
+      "accuracy_b": 0.11632653061224489,
+      "difference_a_minus_b": -0.06505102040816327,
+      "examples": 3920,
+      "seed": 4099
+    },
+    {
+      "accuracy_a": 0.11428571428571428,
+      "accuracy_b": 0.05510204081632653,
+      "difference_a_minus_b": 0.05918367346938775,
+      "examples": 3920,
+      "seed": 7919
+    },
+    {
+      "accuracy_a": 0.11122448979591837,
+      "accuracy_b": 0.013775510204081633,
+      "difference_a_minus_b": 0.09744897959183674,
+      "examples": 3920,
+      "seed": 104729
+    },
+    {
+      "accuracy_a": 0.01683673469387755,
+      "accuracy_b": 0.06173469387755102,
+      "difference_a_minus_b": -0.044897959183673466,
+      "examples": 3920,
+      "seed": 130363
+    }
+  ],
+  "seed_level": {
+    "bootstrap_95_percent_ci": [
+      -0.02168431122448979,
+      0.037679209183673464
+    ],
+    "mean_accuracy_a": 0.07839285714285714,
+    "mean_accuracy_b": 0.07104591836734694,
+    "mean_difference_a_minus_b": 0.007346938775510204,
+    "paired_cohens_dz": 0.14375232048054215,
+    "paired_permutation_p_value": 0.666015625,
+    "sample_std_difference": 0.051108314293296306
+  }
+}
