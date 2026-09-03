@@ -14,6 +14,28 @@ def test_scan_normalization_is_case_and_whitespace_invariant():
     ) == 1.0
 
 
+def test_scan_normalization_repairs_adjacent_added_tokens():
+    assert normalize_for_eval("I_TURN_LEFTI_RUNI_RUN", "scan") == (
+        "I_TURN_LEFT I_RUN I_RUN"
+    )
+    assert compute_exact_match_accuracy(
+        ["I_TURN_LEFTI_RUN"], ["I_TURN_LEFT I_RUN"], dataset_type="scan"
+    ) == 1.0
+
+
+def test_scan_normalization_preserves_unknown_residue():
+    assert normalize_for_eval("I_WALK nonsense I_JUMP", "scan") == (
+        "I_WALK NONSENSE I_JUMP"
+    )
+
+
+def test_scratchpad_normalization_removes_decoded_special_tokens_after_answer():
+    prediction = "<pad> [SCRATCH] think [/SCRATCH] I_JUMP </s> <pad> <pad>"
+    target = "[/SCRATCH] I_JUMP </s> <pad>"
+    assert normalize_for_eval(prediction, "scan", "scratchpad") == "I_JUMP"
+    assert normalize_for_eval(target, "scan", "scratchpad") == "I_JUMP"
+
+
 def test_baseline_reasoning_is_removed_before_dataset_normalization():
     predictions = normalize_batch_for_eval(
         ["Reasoning here. Therefore, the answer is: i_jump"],

@@ -123,6 +123,9 @@ def build_prediction_artifact_rows(
             "correct": normalized_prediction == normalized_target,
             "composition_violation": None,
         })
+        model_input = metadata.get("model_input_text")
+        if isinstance(model_input, str) and model_input and model_input != input_text:
+            rows[-1]["model_input"] = model_input
     return rows
 
 def setup_file_logging(output_dir: Path) -> logging.FileHandler:
@@ -376,6 +379,7 @@ def load_baseline_dataset(
 
     def tokenize_function(examples):
         inputs, targets = raw_text(examples)
+        original_inputs = list(inputs)
         categories = list(examples.get("category", [None] * len(inputs)))
         if baseline_type == "tree_linearized_t5":
             if dataset_name == "scan":
@@ -436,10 +440,11 @@ def load_baseline_dataset(
             for seq in labels["input_ids"]
         ]
         model_inputs["labels"] = label_ids
-        model_inputs["input_text"] = list(inputs)
+        model_inputs["input_text"] = original_inputs
+        model_inputs["model_input_text"] = list(inputs)
         model_inputs["generalization_category"] = categories
         parser = CompositionParser(dataset_name)
-        model_inputs["composition_depth"] = [parser.get_depth(text) for text in inputs]
+        model_inputs["composition_depth"] = [parser.get_depth(text) for text in original_inputs]
         return model_inputs
     
     # Get column names to remove after tokenization
@@ -640,6 +645,7 @@ def train_baseline(
     model_kwargs: dict = None,
     publication_mode: bool = True,
     resume_from_checkpoint: bool = False,
+    evaluation_only: bool = False,
 ):
     """Train a baseline model."""
     
@@ -891,26 +897,38 @@ def train_baseline(
     )
     
     # Train with timing for compute comparison
-    logger.info("Starting training...")
-    print("\nStarting training...")
-    train_start = time.time()
-    train_result = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
-    train_time = time.time() - train_start
-    
-    # Save best model
     best_model_path = output_dir / "best_model"
-    trainer.save_model(str(best_model_path))
-    tokenizer.save_pretrained(str(best_model_path / "tokenizer"))
+    if evaluation_only:
+        if not best_model_path.is_dir():
+            raise FileNotFoundError(f"Evaluation-only replay requires {best_model_path}")
+        logger.info("Evaluation-only replay from validation-selected best_model")
+        trainer._load_from_checkpoint(str(best_model_path))
+        prior_paths = sorted(output_dir.glob(f"results_seed{seed}*.pre_replay.json"))
+        prior_result = (
+            json.loads(prior_paths[-1].read_text(encoding="utf-8"))
+            if prior_paths else {}
+        )
+        train_time = float(prior_result.get("training_wall_clock_seconds", 0.0))
+        prior_steps = int(prior_result.get("optimizer_updates", 0))
+        train_result = type("ReplayResult", (), {"global_step": prior_steps})()
+    else:
+        logger.info("Starting training...")
+        print("\nStarting training...")
+        train_start = time.time()
+        train_result = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+        train_time = time.time() - train_start
+        trainer.save_model(str(best_model_path))
+        tokenizer.save_pretrained(str(best_model_path / "tokenizer"))
 
-    def generation_diagnostics(raw_predictions, decoded_predictions, decoded_targets):
+    def generation_diagnostics(raw_predictions, normalized_predictions, normalized_targets):
         raw_predictions = np.asarray(raw_predictions)
         eos_token_id = tokenizer.eos_token_id
         eos_emitted = (
             np.any(raw_predictions == eos_token_id, axis=1)
             if eos_token_id is not None else np.zeros(len(raw_predictions), dtype=bool)
         )
-        prediction_lengths = [len(text.strip().split()) for text in decoded_predictions]
-        target_lengths = [len(text.strip().split()) for text in decoded_targets]
+        prediction_lengths = [len(text.strip().split()) for text in normalized_predictions]
+        target_lengths = [len(text.strip().split()) for text in normalized_targets]
         return {
             "eos_emission_rate": float(np.mean(eos_emitted)) if len(eos_emitted) else 0.0,
             "generation_limit_rate": float(np.mean(~eos_emitted)) if len(eos_emitted) else 0.0,
@@ -952,7 +970,7 @@ def train_baseline(
         }
         if record_eos_diagnostics:
             metrics["generation_diagnostics"] = generation_diagnostics(
-                predictions, decoded_predictions, decoded_targets
+                predictions, normalized_predictions, normalized_targets
             )
         return metrics, decoded_predictions, decoded_targets, normalized_predictions, normalized_targets
 
@@ -978,7 +996,9 @@ def train_baseline(
     
     # Compute training stats for fair comparison reporting
     total_steps = train_result.global_step
-    samples_per_second = len(dataset["train"]) * num_epochs / train_time
+    samples_per_second = (
+        len(dataset["train"]) * num_epochs / train_time if train_time else 0.0
+    )
     
     # Save training config with compute metrics
     config_dict = {
@@ -987,6 +1007,7 @@ def train_baseline(
         "dataset": dataset_name,
         "split": split,
         "seed": seed,
+        "evaluation_only_replay": evaluation_only,
         "num_epochs": num_epochs,
         "batch_size": batch_size,
         "learning_rate": learning_rate,
@@ -1106,6 +1127,10 @@ def main():
         "--resume-from-checkpoint", action="store_true",
         help="Resume from the newest valid checkpoint in the output directory",
     )
+    parser.add_argument(
+        "--evaluation-only", action="store_true",
+        help="Recompute artifacts from best_model without optimizer updates",
+    )
     
     args = parser.parse_args()
     file_config = load_config_file(args.config)
@@ -1166,6 +1191,7 @@ def main():
         model_kwargs=model_kwargs,
         publication_mode=not args.allow_network_data_fallback,
         resume_from_checkpoint=args.resume_from_checkpoint,
+        evaluation_only=args.evaluation_only,
     )
 
 

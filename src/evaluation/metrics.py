@@ -57,6 +57,11 @@ _LLAMA_RESPONSE_MARKERS = [
     "Response",
 ]
 
+_DECODED_SPECIAL_TOKENS = re.compile(r"(?:<pad>|</?s>)", re.IGNORECASE)
+_SCAN_ACTION_TOKEN = re.compile(
+    r"(I_(?:TURN_LEFT|TURN_RIGHT|WALK|RUN|JUMP|LOOK))", re.IGNORECASE
+)
+
 
 def _collapse_ws(s: str) -> str:
     """Collapse all whitespace to single spaces."""
@@ -103,10 +108,12 @@ def _strip_scratchpad(s: str, start: str = "[SCRATCH]", end: str = "[/SCRATCH]")
     """
     text = s.strip()
     if end in text:
-        return text.split(end)[-1].strip()
-    if start in text:
-        return text.split(start)[-1].strip()
-    return text
+        text = text.split(end)[-1].strip()
+    elif start in text:
+        text = text.split(start)[-1].strip()
+    # Scratchpad decoding retains special tokens so the boundary survives.
+    # Remove tokenizer scaffolding only after extracting the answer.
+    return _collapse_ws(_DECODED_SPECIAL_TOKENS.sub(" ", text))
 
 
 def _strip_code_fences(s: str) -> str:
@@ -123,8 +130,10 @@ def _normalize_scan_actions(s: str) -> str:
     SCAN targets are action tokens like: 'LTURN JUMP LTURN JUMP'
     Canonicalize spacing + uppercase (SCAN gold is uppercase).
     """
-    text = _collapse_ws(s)
-    return text.upper()
+    # Fast and slow T5 tokenizers decode adjacent added tokens differently.
+    # Retain unknown residue so malformed predictions cannot become matches.
+    text = _SCAN_ACTION_TOKEN.sub(r" \1 ", s)
+    return _collapse_ws(text).upper()
 
 
 def _normalize_cogs_lf(s: str) -> str:

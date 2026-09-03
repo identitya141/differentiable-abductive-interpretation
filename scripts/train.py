@@ -283,6 +283,7 @@ def train(
     config: ExperimentConfig,
     seed: Optional[int] = None,
     resume_from_checkpoint: Optional[str] = None,
+    evaluation_only: bool = False,
 ) -> Dict:
     """
     Run training with given configuration.
@@ -421,7 +422,28 @@ def train(
     )
     
     # Train
-    results = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+    if evaluation_only:
+        logger.info("Evaluation-only replay from validation-selected best checkpoint")
+        trainer.load_checkpoint("best")
+        prior_paths = sorted(
+            run_output_dir.glob(f"results_seed{seed}*.pre_replay.json")
+        )
+        results = (
+            json.loads(prior_paths[-1].read_text(encoding="utf-8"))
+            if prior_paths else {}
+        )
+        results.update({
+            'evaluation_only_replay': True,
+            'optimizer_updates': trainer.state.global_step,
+            'examples_seen': trainer.state.examples_seen,
+        })
+    else:
+        results = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+    results['experiment_name'] = config.experiment_name
+    results['dataset'] = dataset_type
+    results['split'] = config.data.dataset_split
+    results['method'] = os.environ.get('PUBLICATION_METHOD', config.experiment_name)
+    results['seed'] = seed
     results['resolved_config'] = str(resolved_config_path)
     results['source_revision'] = repro_manager.info.get('git_hash')
     results['source_tree_dirty'] = repro_manager.info.get(
@@ -459,7 +481,8 @@ def train(
 
     # Final metrics must use the validation-selected checkpoint, never the
     # in-memory final epoch.
-    trainer.load_checkpoint("best")
+    if not evaluation_only:
+        trainer.load_checkpoint("best")
     results['selected_checkpoint'] = {
         'name': 'best',
         'metric': 'validation_exact_match',
@@ -613,6 +636,11 @@ def main():
         help="Resume from a named checkpoint directory (for example epoch_7)",
     )
     parser.add_argument(
+        "--evaluation-only",
+        action="store_true",
+        help="Recompute artifacts from the best checkpoint without training",
+    )
+    parser.add_argument(
         "--quick",
         action="store_true",
         help="Quick training run (fewer epochs, smaller batch)"
@@ -665,6 +693,7 @@ def main():
         config,
         seed=args.seed,
         resume_from_checkpoint=args.resume_from_checkpoint,
+        evaluation_only=args.evaluation_only,
     )
     
     print("\n" + "="*50)

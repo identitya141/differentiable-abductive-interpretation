@@ -194,7 +194,10 @@ PY
     case "$RUNNER" in
         baseline)
             RESUME_ARGS=()
-            if compgen -G "$RUN_DIR/checkpoint-*" >/dev/null; then
+            if [[ "${EVALUATION_ONLY:-0}" == "1" ]]; then
+                RESUME_ARGS+=(--evaluation-only)
+                echo "Evaluation-only replay from $RUN_DIR/best_model"
+            elif compgen -G "$RUN_DIR/checkpoint-*" >/dev/null; then
                 RESUME_ARGS+=(--resume-from-checkpoint)
                 echo "Resuming baseline from newest checkpoint in $RUN_DIR"
             fi
@@ -219,7 +222,10 @@ PY
             # expected nonzero status trip `set -euo pipefail` and terminate
             # the long-lived matrix worker before training starts.
             LATEST_CHECKPOINT=""
-            if [[ -d "$RUN_DIR/checkpoints" ]]; then
+            if [[ "${EVALUATION_ONLY:-0}" == "1" ]]; then
+                RESUME_ARGS+=(--evaluation-only)
+                echo "Evaluation-only replay from $RUN_DIR/checkpoints/best"
+            elif [[ -d "$RUN_DIR/checkpoints" ]]; then
                 LATEST_CHECKPOINT=$(find "$RUN_DIR/checkpoints" \
                     -mindepth 1 -maxdepth 1 -type d -name 'epoch_*' \
                     -printf '%f\n' \

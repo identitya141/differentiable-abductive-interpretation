@@ -78,3 +78,20 @@ def test_baseline_writer_output_passes_breakdown_contract():
     )
     report = build_breakdown_report({"reference_t5": {42: rows}}, [42])
     assert report["methods"]["reference_t5"]["depth"]["2"]["mean"] == 1.0
+
+
+def test_baseline_writer_preserves_original_and_distinct_model_input():
+    rows = build_prediction_artifact_rows(
+        metadata_rows=[{
+            "input_text": "jump twice",
+            "model_input_text": "Represent the structure: jump twice",
+            "composition_depth": 2,
+        }],
+        predictions=["I_JUMP I_JUMP"], targets=["I_JUMP I_JUMP"],
+        normalized_predictions=["I_JUMP I_JUMP"],
+        normalized_targets=["I_JUMP I_JUMP"],
+        experiment_name="scan_length_cot", method="cot",
+        dataset_name="scan", split="length", seed=42,
+    )
+    assert rows[0]["input"] == "jump twice"
+    assert rows[0]["model_input"] == "Represent the structure: jump twice"
