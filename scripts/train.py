@@ -279,6 +279,20 @@ def create_model(config: ExperimentConfig) -> torch.nn.Module:
     return DAITransformer(config=dai_config, pretrained=model_config.pretrained)
 
 
+def resolve_evaluation_checkpoint_dir(run_output_dir: Path) -> Path:
+    """Resolve current or legacy timestamp-nested DAI checkpoint layouts."""
+    direct = run_output_dir / "checkpoints" / "best" / "model.pt"
+    candidates = [direct] if direct.is_file() else sorted(
+        run_output_dir.glob("*/checkpoints/best/model.pt")
+    )
+    if len(candidates) != 1:
+        raise FileNotFoundError(
+            "Evaluation-only replay requires exactly one best DAI checkpoint "
+            f"under {run_output_dir}; found {len(candidates)}"
+        )
+    return candidates[0].parents[2]
+
+
 def train(
     config: ExperimentConfig,
     seed: Optional[int] = None,
@@ -318,6 +332,11 @@ def train(
     logger.info(f"Starting experiment: {config.experiment_name}")
     logger.info(f"Seed: {seed}")
     logger.info(f"Output dir: {run_output_dir}")
+
+    checkpoint_output_dir = (
+        resolve_evaluation_checkpoint_dir(run_output_dir)
+        if evaluation_only else run_output_dir
+    )
     
     # Create tokenizer
     tokenizer = T5Tokenizer.from_pretrained(config.model.base_model)
@@ -387,7 +406,7 @@ def train(
         eval_strategy=config.eval_strategy,
         save_strategy=config.save_strategy,
         logging_steps=config.logging_steps,
-        output_dir=str(run_output_dir),
+        output_dir=str(checkpoint_output_dir),
     )
     
     # Create metric computation function with full diagnostics

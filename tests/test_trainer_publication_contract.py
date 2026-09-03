@@ -9,6 +9,14 @@ from unittest.mock import patch
 import torch
 
 from src.training.trainer import DAITrainer, TrainingConfig
+from scripts.train import resolve_evaluation_checkpoint_dir
+
+
+def test_evaluation_checkpoint_resolver_supports_legacy_nested_layout(tmp_path):
+    checkpoint = tmp_path / "legacy_timestamp" / "checkpoints" / "best"
+    checkpoint.mkdir(parents=True)
+    (checkpoint / "model.pt").touch()
+    assert resolve_evaluation_checkpoint_dir(tmp_path) == tmp_path / "legacy_timestamp"
 
 
 class _EvaluationModel:
