@@ -16,7 +16,10 @@ def test_evaluation_checkpoint_resolver_supports_legacy_nested_layout(tmp_path):
     checkpoint = tmp_path / "legacy_timestamp" / "checkpoints" / "best"
     checkpoint.mkdir(parents=True)
     (checkpoint / "model.pt").touch()
-    assert resolve_evaluation_checkpoint_dir(tmp_path) == tmp_path / "legacy_timestamp"
+    resolved = resolve_evaluation_checkpoint_dir(tmp_path)
+    assert resolved == tmp_path / "legacy_timestamp"
+    replay_config = TrainingConfig(output_dir=str(resolved.parent), run_id=resolved.name)
+    assert replay_config.output_path == resolved
 
 
 class _EvaluationModel:

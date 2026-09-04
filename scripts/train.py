@@ -379,6 +379,7 @@ def train(
     # Create training config
     training_config = TrainingConfig(
         experiment_name=config.experiment_name,
+        run_id=checkpoint_output_dir.name if evaluation_only else None,
         dataset_type=dataset_type,
         seed=seed,
         num_epochs=config.training.num_epochs,
@@ -406,7 +407,7 @@ def train(
         eval_strategy=config.eval_strategy,
         save_strategy=config.save_strategy,
         logging_steps=config.logging_steps,
-        output_dir=str(checkpoint_output_dir),
+        output_dir=str(checkpoint_output_dir.parent if evaluation_only else run_output_dir),
     )
     
     # Create metric computation function with full diagnostics

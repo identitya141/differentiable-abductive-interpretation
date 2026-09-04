@@ -1051,6 +1051,7 @@ def train_baseline(
         "split": split,
         "method": baseline_type,
         "seed": seed,
+        "evaluation_only_replay": evaluation_only,
         "optimizer_updates": int(train_result.global_step),
         "examples_seen": int(len(dataset["train"]) * num_epochs),
         "training_wall_clock_seconds": float(train_time),
